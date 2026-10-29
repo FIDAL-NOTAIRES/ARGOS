@@ -110,6 +110,9 @@ button{font:inherit;cursor:pointer}
 .assist>button:hover{background:var(--fond)}
 .assist .chev{width:14px;height:14px;transition:transform .2s}
 .assist>button[aria-expanded="true"] .chev{transform:rotate(90deg)}
+.choix-interv{display:flex;flex-direction:column;gap:4px;margin-top:8px;font-size:12px;color:var(--doux)}
+.choix-interv select{height:34px;border:1px solid var(--trait);border-radius:6px;background:#fff;color:var(--nuit);font-size:13px;padding:0 8px}
+.choix-interv select:focus-visible{outline:2px solid var(--canard);outline-offset:1px}
 .onglets{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;overflow:hidden;max-height:0;opacity:0;transition:max-height .35s ease,opacity .35s ease}
 .onglets.ouvert{max-height:80px;opacity:1}
 .onglets button{flex:1 1 auto;border:1px solid var(--canard);background:#fff;color:var(--canard);border-radius:16px;padding:4px 10px;font-size:12px}
@@ -318,7 +321,7 @@ body.visite .visite-ctl{display:block}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/4.7.1/maplibre-gl.min.js"></script>
 <script>
-/* ===================== ARGOS · maquette v0.25 · clients et documents fictifs, parcelles réelles lues au cadastre ===================== */
+/* ===================== ARGOS · maquette v0.27 · clients et documents fictifs, parcelles réelles lues au cadastre ===================== */
 var MISE_A_JOUR = 'octobre 2026';
 
 var NOTAIRE = {
@@ -694,14 +697,16 @@ function afficherFiche(s) {
       }).join('') +
       '<div class="theme"><h4>Plan du site</h4><button type="button" class="doc" data-doc>' + IC_PLAN + 'Plan cadastral colorisé<span class="genere">généré</span>' + IC_DL + '</button></div>' +
     '</div></div>' +
-    '<div class="assist">' +
-      '<button type="button" id="btnAssist" aria-expanded="false"><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 5l7 7-7 7"/></svg>Une question sur ce site ?</button>' +
-      '<div class="onglets" id="onglets">' + DOMAINES.map(function (d) { return '<button type="button" data-domaine="' + d.cle + '" aria-pressed="false">' + d.titre + '</button>'; }).join('') + '</div>' +
+    '<div class="bloc">' + titreBloc('assist', 'Une question ou un besoin d’assistance sur ce site ?') + (etatBlocs.assist ? '<div class="contenu-bloc">' : '<div class="contenu-bloc" hidden>') +
+      '<label class="choix-interv"><span>Intervenant</span><select id="choixIntervenant">' +
+        '<option value="">Choisir l’intervenant…</option>' +
+        DOMAINES.map(function (d) { return '<option value="' + d.cle + '">' + d.titre + '</option>'; }).join('') +
+      '</select></label>' +
       '<div id="carteContact"></div>' +
-    '</div>';
+    '</div></div>';
 }
 /* Blocs repliables de la fiche : caractéristiques repliées par défaut, documents dépliés ; le choix est gardé d'un site à l'autre */
-var etatBlocs = { carac: false, docs: true };
+var etatBlocs = { carac: false, docs: true, assist: false };
 function titreBloc(cle, libelle) {
   return '<button type="button" class="titre-bloc" data-bloc="' + cle + '" aria-expanded="' + etatBlocs[cle] + '">' +
     '<svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 5l7 7-7 7"/></svg>' + libelle + '</button>';
@@ -730,10 +735,6 @@ document.getElementById('fiche').addEventListener('click', function (e) {
     return;
   }
   if (e.target.closest('[data-doc]')) { annoncer('Maquette : aucun document réel. Le téléchargement sécurisé viendra avec la version définitive.'); return; }
-  var b = e.target.closest('#btnAssist');
-  if (b) { var o = b.getAttribute('aria-expanded') !== 'true'; b.setAttribute('aria-expanded', String(o)); document.getElementById('onglets').classList.toggle('ouvert', o); if (!o) document.getElementById('carteContact').innerHTML = ''; return; }
-  var t = e.target.closest('[data-domaine]');
-  if (t) { document.querySelectorAll('[data-domaine]').forEach(function (x) { x.setAttribute('aria-pressed', String(x === t)); }); montrerContact(SITES[courant], t.getAttribute('data-domaine')); return; }
   if (e.target.closest('[data-avocat]')) { e.preventDefault(); annoncer('Maquette : les coordonnées de l’avocat seront chargées dans l’administration.'); }
 });
 
@@ -757,6 +758,13 @@ function afficherAccueil() {
 document.getElementById('fiche').addEventListener('click', function (e) {
   if (!e.target.closest('#voirTout')) return;
   carte.flyToBounds(L.latLngBounds(SITES.map(function (s) { return [s.lat, s.lng]; })).pad(0.15), { duration: 1 });
+});
+
+/* Menu déroulant des intervenants : la carte de contact du domaine choisi s'affiche dessous */
+document.getElementById('fiche').addEventListener('change', function (e) {
+  if (e.target.id !== 'choixIntervenant' || courant === null) return;
+  if (e.target.value) montrerContact(SITES[courant], e.target.value);
+  else document.getElementById('carteContact').innerHTML = '';
 });
 
 /* ---------- Sélection d’un site ---------- */
@@ -1042,13 +1050,14 @@ function annoncer(t) {
     Promise.race([mosaiquePrete, attendre(1800).then(function () {
       return { type: 'FeatureCollection', features: parcellesClient().features.map(function (f, i) { return { type: 'Feature', id: i + 1, properties: {}, geometry: f.geometry }; }) };
     })]).then(lancerChaos);
-    carte3d.easeTo({ center: [cLng, cLat - 0.0004], zoom: 17.3, pitch: 16, bearing: 15, duration: 8500,
+    carte3d.easeTo({ center: [cLng, cLat - 0.0004], zoom: 17.3, pitch: 16, bearing: 15, duration: 7400,
       easing: function (t) { return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; } });
-    plus(stabiliser, 6300);
-    plus(allumerParcelles, 6700);
-    plus(function () { carte3d.easeTo({ bearing: 28, zoom: 17.5, duration: 4500, easing: function (t) { return t; } }); }, 8500);
-    plus(function () { intro.classList.add('titre'); }, 9800);
-    plus(finir, 13400);
+    /* Minutage resserré (v0.27) : le nom arrive dès que les parcelles s'allument ; plus de rotation finale ;
+       l’image est figée vers 7,9 s et l'ouverture s'efface une seconde après */
+    plus(stabiliser, 5600);
+    plus(allumerParcelles, 5900);
+    plus(function () { intro.classList.add('titre'); }, 6300);
+    plus(finir, 8900);
   });
 })();
 
