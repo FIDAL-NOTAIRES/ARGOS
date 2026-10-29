@@ -83,6 +83,11 @@ button{font:inherit;cursor:pointer}
 .cadenas.ferme{color:var(--carmin);border-color:var(--carmin)}
 .aide-ins{font-size:11px;color:var(--doux);line-height:1.4}
 .fiche{background:var(--blanc);border-right:1px solid var(--trait);overflow-y:auto;padding:18px 18px 14px;display:flex;flex-direction:column}
+.bloc .titre-bloc{display:flex;align-items:center;gap:6px;width:100%;background:none;border:0;padding:2px 0;font-size:12px;font-weight:600;color:var(--canard);text-align:left}
+.bloc .titre-bloc .chev{width:14px;height:14px;transition:transform .2s ease}
+.bloc .titre-bloc[aria-expanded="true"] .chev{transform:rotate(90deg)}
+.bloc .titre-bloc:focus-visible{outline:2px solid var(--canard);outline-offset:2px}
+.contenu-bloc{margin-top:6px}
 .theme{margin-top:10px}
 .theme h4{margin:0 0 2px;font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--doux)}
 .sans-doc{font-size:12px;color:var(--doux);font-style:italic;padding:4px 0 6px;border-bottom:1px solid #EEF0F3}
@@ -294,7 +299,7 @@ body.visite .visite-ctl{display:block}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/4.7.1/maplibre-gl.min.js"></script>
 <script>
-/* ===================== ARGOS · maquette v0.18 · clients et documents fictifs, parcelles réelles lues au cadastre ===================== */
+/* ===================== ARGOS · maquette v0.19 · clients et documents fictifs, parcelles réelles lues au cadastre ===================== */
 var MISE_A_JOUR = 'octobre 2026';
 
 var NOTAIRE = {
@@ -551,14 +556,14 @@ function afficherFiche(s) {
       '<button type="button" data-nav="-1"' + (i <= 0 ? ' disabled' : '') + '>Site précédent</button>' +
       '<button type="button" data-nav="1"' + (i < 0 || i >= visibles.length - 1 ? ' disabled' : '') + '>Site suivant</button>' +
     '</div>' +
-    '<div class="bloc"><h3>Le bien</h3>' +
+    '<div class="bloc">' + titreBloc('carac', 'Caractéristiques du bien') + (etatBlocs.carac ? '<div class="contenu-bloc">' : '<div class="contenu-bloc" hidden>') +
       '<div class="ligne"><span>Nature</span><span>' + s.nature + '</span></div>' +
       '<div class="ligne"><span>Parcelles</span><span>' + (s.parcelles ? s.parcelles.join(', ') : 'lecture du cadastre…') + '</span></div>' +
       '<div class="ligne"><span>Surface cadastrale</span><span>' + (s.surface || '…') + '</span></div>' +
       '<div class="ligne"><span>Zonage d’urbanisme</span><span>' + (s.zonage || '…') + '</span></div>' +
       '<div class="ligne"><span>Région</span><span>' + s.region + '</span></div>' +
-    '</div>' +
-    '<div class="bloc"><h3>Documents</h3>' +
+    '</div></div>' +
+    '<div class="bloc">' + titreBloc('docs', 'Documents') + (etatBlocs.docs ? '<div class="contenu-bloc">' : '<div class="contenu-bloc" hidden>') +
       THEMES.map(function (t, k) {
         /* maquette : certaines thématiques sans document, pour montrer le message */
         var vide = !t.docs.length || (k === 4 && s.id % 2 === 1) || (k === 1 && s.id % 3 === 2);
@@ -566,12 +571,18 @@ function afficherFiche(s) {
           t.docs.map(function (d) { return '<button type="button" class="doc" data-doc>' + IC_DOC + d + IC_DL + '</button>'; }).join(''));
       }).join('') +
       '<div class="theme"><h4>Plan du site</h4><button type="button" class="doc" data-doc>' + IC_PLAN + 'Plan cadastral colorisé<span class="genere">généré</span>' + IC_DL + '</button></div>' +
-    '</div>' +
+    '</div></div>' +
     '<div class="assist">' +
       '<button type="button" id="btnAssist" aria-expanded="false"><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 5l7 7-7 7"/></svg>Une question sur ce site ?</button>' +
       '<div class="onglets" id="onglets">' + DOMAINES.map(function (d) { return '<button type="button" data-domaine="' + d.cle + '" aria-pressed="false">' + d.titre + '</button>'; }).join('') + '</div>' +
       '<div id="carteContact"></div>' +
     '</div>';
+}
+/* Blocs repliables de la fiche : caractéristiques repliées par défaut, documents dépliés ; le choix est gardé d'un site à l'autre */
+var etatBlocs = { carac: false, docs: true };
+function titreBloc(cle, libelle) {
+  return '<button type="button" class="titre-bloc" data-bloc="' + cle + '" aria-expanded="' + etatBlocs[cle] + '">' +
+    '<svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 5l7 7-7 7"/></svg>' + libelle + '</button>';
 }
 function montrerContact(s, cle) {
   var d = DOMAINES.filter(function (x) { return x.cle === cle; })[0];
@@ -586,6 +597,14 @@ document.getElementById('fiche').addEventListener('click', function (e) {
   if (n && !n.disabled) {
     var i = visibles.findIndex(function (x) { return x.id === courant; }) + (+n.getAttribute('data-nav'));
     if (visibles[i]) choisir(visibles[i].id, true);
+    return;
+  }
+  var tb = e.target.closest('[data-bloc]');
+  if (tb) {
+    var cle = tb.getAttribute('data-bloc');
+    etatBlocs[cle] = !etatBlocs[cle];
+    tb.setAttribute('aria-expanded', String(etatBlocs[cle]));
+    tb.nextElementSibling.hidden = !etatBlocs[cle];
     return;
   }
   if (e.target.closest('[data-doc]')) { annoncer('Maquette : aucun document réel. Le téléchargement sécurisé viendra avec la version définitive.'); return; }
