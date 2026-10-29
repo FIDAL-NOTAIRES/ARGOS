@@ -321,7 +321,7 @@ body.visite .visite-ctl{display:block}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/4.7.1/maplibre-gl.min.js"></script>
 <script>
-/* ===================== ARGOS · maquette v0.27 · clients et documents fictifs, parcelles réelles lues au cadastre ===================== */
+/* ===================== ARGOS · maquette v0.28 · clients et documents fictifs, parcelles réelles lues au cadastre ===================== */
 var MISE_A_JOUR = 'octobre 2026';
 
 var NOTAIRE = {
@@ -347,10 +347,12 @@ var DOMAINES = [
 ];
 /* Thématiques documentaires : même ordre que dans l'administration */
 var THEMES = [
+  /* Ordre voulu par JFD (v0.28) : désignation, puis plan, puis titre */
+  { titre: 'Note de désignation', docs: ['Désignation du bien selon le titre'] },
+  { titre: 'Plan du site', plan: true },
   { titre: 'Titre', docs: ['Titre de propriété'] },
   { titre: 'Exploitation', docs: ['Bail en cours'] },
   { titre: 'Fiscalité', docs: ['Avis de taxe foncière'] },
-  { titre: 'Note de désignation', docs: ['Désignation du bien selon le titre'] },
   { titre: 'Diagnostics', docs: ['Diagnostics techniques'] }
 ];
 function codeSite(s) { return 'ARG-' + ('00' + (s.id + 1)).slice(-3); }
@@ -689,13 +691,13 @@ function afficherFiche(s) {
       '<div class="ligne"><span>Région</span><span>' + s.region + '</span></div>' +
     '</div></div>' +
     '<div class="bloc">' + titreBloc('docs', 'Documents') + (etatBlocs.docs ? '<div class="contenu-bloc">' : '<div class="contenu-bloc" hidden>') +
-      THEMES.map(function (t, k) {
+      THEMES.map(function (t) {
+        if (t.plan) return '<div class="theme"><h4>' + t.titre + '</h4><button type="button" class="doc" data-doc>' + IC_PLAN + 'Plan cadastral colorisé<span class="genere">généré</span>' + IC_DL + '</button></div>';
         /* maquette : certaines thématiques sans document, pour montrer le message */
-        var vide = !t.docs.length || (k === 1 && s.id % 3 === 2);
+        var vide = !t.docs.length || (t.titre === 'Exploitation' && s.id % 3 === 2);
         return '<div class="theme"><h4>' + t.titre + '</h4>' + (vide ? '<div class="sans-doc">Aucun document à ce stade.</div>' :
-          t.docs.map(function (d) { return '<button type="button" class="doc" data-doc>' + IC_DOC + d + IC_DL + '</button>'; }).join(''));
+          t.docs.map(function (d) { return '<button type="button" class="doc" data-doc>' + IC_DOC + d + IC_DL + '</button>'; }).join('')) + '</div>';
       }).join('') +
-      '<div class="theme"><h4>Plan du site</h4><button type="button" class="doc" data-doc>' + IC_PLAN + 'Plan cadastral colorisé<span class="genere">généré</span>' + IC_DL + '</button></div>' +
     '</div></div>' +
     '<div class="bloc">' + titreBloc('assist', 'Une question ou un besoin d’assistance sur ce site ?') + (etatBlocs.assist ? '<div class="contenu-bloc">' : '<div class="contenu-bloc" hidden>') +
       '<label class="choix-interv"><span>Intervenant</span><select id="choixIntervenant">' +
