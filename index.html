@@ -38,7 +38,14 @@ button{font:inherit;cursor:pointer}
 .outils{padding:12px;display:flex;flex-direction:column;gap:8px;border-bottom:1px solid var(--trait)}
 .outils input,.outils select{height:34px;border:1px solid var(--trait);border-radius:6px;padding:0 10px;font:inherit;font-size:13px;background:#fff;color:var(--texte)}
 .outils input:focus,.outils select:focus{outline:2px solid var(--canard);outline-offset:-1px}
+.vues{display:flex;border:1px solid var(--trait);border-radius:6px;overflow:hidden}
+.vues button{flex:1;height:30px;border:0;background:#fff;font-size:13px;color:var(--doux)}
+.vues button[aria-pressed="true"]{background:var(--nuit);color:#fff}
 .defile{overflow-y:auto;flex:1;padding:6px 0 16px}
+.resume{border-top:1px solid var(--trait);padding:12px 14px 14px;display:grid;grid-template-columns:1fr 1fr;gap:8px 12px;background:var(--fond)}
+.resume div{font-size:12px;color:var(--doux)}
+.resume strong{display:block;font-family:Georgia,serif;font-weight:400;font-size:20px;color:var(--nuit)}
+.resume .large{grid-column:1 / -1}
 .pli{display:flex;align-items:center;gap:8px;width:100%;background:none;border:0;text-align:left;color:var(--nuit)}
 .pli:hover{background:var(--fond)}
 .pli:focus-visible{outline:2px solid var(--canard);outline-offset:-2px}
@@ -158,6 +165,10 @@ body.visite .visite-ctl{display:block}
 @keyframes apparait{to{opacity:1}}
 .passer{position:absolute;right:24px;bottom:calc(24px + env(safe-area-inset-bottom,0px));z-index:3;background:rgba(15,34,56,.55);color:#fff;border:1px solid rgba(255,255,255,.45);border-radius:6px;padding:7px 14px;font-size:13px}
 .passer:hover{background:rgba(15,34,56,.85)}
+.alerte{position:relative;width:34px;height:34px;opacity:0;transform:scale(.4);transition:opacity .4s ease,transform .5s cubic-bezier(.2,1.5,.4,1)}
+.alerte.pose{opacity:1;transform:none}
+.alerte svg{position:absolute;inset:0;width:34px;height:34px;filter:drop-shadow(0 2px 6px rgba(0,0,0,.45))}
+.alerte::before{content:"";position:absolute;left:50%;top:60%;width:14px;height:14px;margin:-7px 0 0 -7px;border-radius:50%;border:2px solid #FF982D;animation:onde 1.6s ease-out infinite}
 .balise{position:relative;width:2px;height:170px;opacity:0}
 .balise.pose{opacity:1}
 .balise .faisceau{position:absolute;left:0;bottom:0;width:2px;height:100%;transform-origin:50% 100%;transform:scaleY(0);background:linear-gradient(to top,rgba(160,16,64,1),rgba(160,16,64,.55) 55%,rgba(109,213,220,.9));box-shadow:0 0 10px rgba(160,16,64,.9),0 0 22px rgba(160,16,64,.5)}
@@ -207,7 +218,6 @@ body.visite .visite-ctl{display:block}
 <header class="tete">
   <div class="marque"><b>ARGOS</b><span>FIDAL Notaires</span></div>
   <div class="client">Client de démonstration</div>
-  <div class="chiffres" id="chiffres"></div>
   <span class="demo">Maquette · données fictives</span>
   <div class="espace"></div>
   <button class="btn-tete" id="btnVisite" type="button">
@@ -222,8 +232,13 @@ body.visite .visite-ctl{display:block}
     <div class="outils">
       <input id="recherche" type="search" placeholder="Commune ou rue" aria-label="Rechercher une commune ou une rue">
       <select id="region" aria-label="Filtrer par région"></select>
+      <div class="vues" role="group" aria-label="Classement de la liste">
+        <button type="button" data-vue="region" aria-pressed="true">Par région</button>
+        <button type="button" data-vue="commune" aria-pressed="false">Par commune</button>
+      </div>
     </div>
     <div class="defile" id="liste"></div>
+    <div class="resume" id="resume"></div>
   </aside>
 
   <section class="carte-zone" id="zoneCarte" aria-label="Carte des sites">
@@ -278,7 +293,7 @@ body.visite .visite-ctl{display:block}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/4.7.1/maplibre-gl.min.js"></script>
 <script>
-/* ===================== ARGOS · maquette v0.14 · clients et documents fictifs, parcelles réelles lues au cadastre ===================== */
+/* ===================== ARGOS · maquette v0.16 · clients et documents fictifs, parcelles réelles lues au cadastre ===================== */
 var MISE_A_JOUR = 'octobre 2026';
 
 var NOTAIRE = {
@@ -443,11 +458,12 @@ document.querySelectorAll('.cadenas').forEach(function (b) {
 /* ---------- Bandeau de chiffres clés ---------- */
 var regions = Array.from(new Set(SITES.map(function (s) { return s.region; }))).sort();
 var communes = Array.from(new Set(SITES.map(function (s) { return s.commune; }))).sort(function (a, b) { return a.localeCompare(b, 'fr'); });
-document.getElementById('chiffres').innerHTML =
-  '<span class="chiffre"><strong>' + SITES.length + '</strong> sites</span>' +
-  '<span class="chiffre"><strong>' + communes.length + '</strong> communes</span>' +
-  '<span class="chiffre"><strong>' + regions.length + '</strong> régions</span>' +
-  '<span class="chiffre">Mis à jour <strong>' + MISE_A_JOUR + '</strong></span>';
+document.getElementById('resume').innerHTML =
+  '<div><strong>' + SITES.length + '</strong>sites</div>' +
+  '<div><strong>' + communes.length + '</strong>communes</div>' +
+  '<div><strong>' + regions.length + '</strong>régions</div>' +
+  '<div><strong>' + new Set(SITES.map(function (s) { return s.region + '|' + s.commune + '|' + s.cp; })).size + '</strong>codes postaux</div>' +
+  '<div class="large">Mis à jour en ' + MISE_A_JOUR + '</div>';
 
 /* ---------- Liste par commune, recherche et filtre par région ---------- */
 var selRegion = document.getElementById('region');
@@ -461,6 +477,8 @@ function sansAccent(t) { return t.normalize('NFD').replace(/[\u0300-\u036f]/g, '
 
 var CHEV = '<svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 5l7 7-7 7"/></svg>';
 var ouverts = {};
+var modeListe = 'region';
+function cpDe(com, liste) { return Array.from(new Set(liste.filter(function (s) { return s.commune === com; }).map(function (s) { return s.cp; }))).sort().join(', '); }
 function cleCom(s) { return s.region + '|' + s.commune; }
 function construireListe() {
   var q = sansAccent(champ.value.trim()), r = selRegion.value;
@@ -470,6 +488,18 @@ function construireListe() {
   if (!visibles.length) { elListe.innerHTML = '<p class="vide">Aucun site ne correspond. Essayez une autre commune ou une autre rue.</p>'; return; }
   var tout = !!q || !!r;
   var html = '';
+  if (modeListe === 'commune') {
+    visibles.sort(function (a, b) { return a.commune.localeCompare(b.commune, 'fr') || a.rue.localeCompare(b.rue, 'fr'); });
+    Array.from(new Set(visibles.map(function (s) { return s.commune; }))).forEach(function (com) {
+      var deCom = visibles.filter(function (s) { return s.commune === com; });
+      var k = 'C|' + com, oC = tout || !!ouverts[k];
+      html += '<button type="button" class="pli com" style="padding-left:14px" data-pli="' + k + '" aria-expanded="' + oC + '">' + CHEV + com + ' (' + cpDe(com, deCom) + ')<small>' + deCom.length + '</small></button>';
+      if (!oC) return;
+      deCom.forEach(function (s) { html += '<button type="button" class="rue' + (courant === s.id ? ' actif' : '') + '" style="padding-left:38px" data-id="' + s.id + '">' + s.rue + '</button>'; });
+    });
+    elListe.innerHTML = html;
+    return;
+  }
   Array.from(new Set(visibles.map(function (s) { return s.region; }))).forEach(function (reg) {
     var deReg = visibles.filter(function (s) { return s.region === reg; });
     var oR = tout || !!ouverts[reg];
@@ -494,6 +524,12 @@ elListe.addEventListener('click', function (e) {
   if (b) choisir(+b.getAttribute('data-id'), true);
 });
 champ.addEventListener('input', construireListe);
+document.querySelector('.vues').addEventListener('click', function (e) {
+  var b = e.target.closest('[data-vue]'); if (!b) return;
+  modeListe = b.getAttribute('data-vue');
+  document.querySelectorAll('.vues button').forEach(function (x) { x.setAttribute('aria-pressed', String(x === b)); });
+  construireListe();
+});
 selRegion.addEventListener('change', function () {
   construireListe();
   if (visibles.length) carte.fitBounds(L.latLngBounds(visibles.map(function (s) { return [s.lat, s.lng]; })).pad(0.2));
@@ -563,7 +599,7 @@ document.getElementById('fiche').addEventListener('click', function (e) {
 function choisir(id, centrer) {
   courant = id;
   var s = SITES[id];
-  ouverts[s.region] = true; ouverts[cleCom(s)] = true;
+  ouverts[s.region] = true; ouverts[cleCom(s)] = true; ouverts['C|' + s.commune] = true;
   formes.carte.forEach(function (f, k) { f.setStyle(k === id ? STYLE_ACTIF : STYLE_NORMAL); });
   if (centrer) carte.flyTo([s.lat, s.lng], 17, { duration: 0.8 });
   construireListe();
@@ -708,8 +744,33 @@ function annoncer(t) {
       return { type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: [anneau] } };
     }) };
   }
+  /* Pour l'ouverture : d'autres immeubles du client (carmin) et des zones signalées (alertes), autour des deux sites */
+  var AUTRES = [[48.8722, 2.3088], [48.8746, 2.3058], [48.8716, 2.3030]];
+  var ALERTES = [[48.8741, 2.3102], [48.8708, 2.3070], [48.8752, 2.3135]];
+  function lirePoints(pts) {
+    return Promise.all(pts.map(function (pt, k) {
+      return attendre(120 * k).then(function () { return window.fetch ? demanderParcelle(pt[1], pt[0]) : null; }).catch(function () { return null; });
+    })).then(function (fs) { return { type: 'FeatureCollection', features: fs.filter(Boolean).map(function (f) { return { type: 'Feature', properties: {}, geometry: f.geometry }; }) }; });
+  }
+  var autresPret = lirePoints(AUTRES), alertesPret = lirePoints(ALERTES);
+  function signalerAlertes() {
+    alertesPret.then(function (g) {
+      if (fini) return;
+      carte3d.addSource('alertes', { type: 'geojson', data: g });
+      carte3d.addLayer({ id: 'alerte-fond', type: 'fill', source: 'alertes', paint: { 'fill-color': '#FF982D', 'fill-opacity': 0.3 } });
+      carte3d.addLayer({ id: 'alerte-trait', type: 'line', source: 'alertes', paint: { 'line-color': '#FF982D', 'line-width': 2.5, 'line-dasharray': [2, 1.5] } });
+      ALERTES.forEach(function (pt, i) {
+        var el = document.createElement('div');
+        el.className = 'alerte';
+        el.innerHTML = '<svg viewBox="0 0 34 34"><path d="M17 3 L32 30 H2 Z" fill="#FF982D" stroke="#fff" stroke-width="2" stroke-linejoin="round"/><rect x="15.5" y="12" width="3" height="10" rx="1.5" fill="#0F2238"/><circle cx="17" cy="25.5" r="1.8" fill="#0F2238"/></svg>';
+        new maplibregl.Marker({ element: el, anchor: 'bottom' }).setLngLat([pt[1], pt[0]]).addTo(carte3d);
+        plus(function () { el.classList.add('pose'); }, 250 + i * 420);
+      });
+    });
+  }
   function allumerParcelles() {
     carte3d.addSource('client', { type: 'geojson', data: parcellesClient() });
+    autresPret.then(function (g) { if (!fini && g.features.length) carte3d.getSource('client').setData({ type: 'FeatureCollection', features: parcellesClient().features.concat(g.features) }); });
     carte3d.addLayer({ id: 'client-halo', type: 'line', source: 'client', paint: { 'line-color': '#FF2E6A', 'line-width': 14, 'line-blur': 10, 'line-opacity': 0 } });
     carte3d.addLayer({ id: 'client-fond', type: 'fill', source: 'client', paint: { 'fill-color': '#A01040', 'fill-opacity': 0 } });
     carte3d.addLayer({ id: 'client-trait', type: 'line', source: 'client', paint: { 'line-color': '#FFFFFF', 'line-width': 2, 'line-opacity': 0 } });
@@ -731,6 +792,7 @@ function annoncer(t) {
     carte3d.easeTo({ center: [cLng, cLat - 0.0004], zoom: 17.4, pitch: 14, bearing: 18, duration: 8000,
       easing: function (t) { return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; } });
     plus(allumerParcelles, 5200);
+    plus(signalerAlertes, 6900);
     survol.forEach(function (s, i) {
       var el = document.createElement('div');
       el.className = 'balise';
@@ -740,8 +802,8 @@ function annoncer(t) {
       plus(function () { el.classList.add('pose'); }, 6200 + i * 900);
     });
     plus(function () { carte3d.easeTo({ bearing: 30, zoom: 17.6, duration: 4500, easing: function (t) { return t; } }); }, 8000);
-    plus(function () { intro.classList.add('titre'); }, 8600);
-    plus(finir, 12000);
+    plus(function () { intro.classList.add('titre'); }, 9200);
+    plus(finir, 12800);
   });
 })();
 
