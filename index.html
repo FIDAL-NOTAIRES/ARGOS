@@ -261,7 +261,7 @@ body.visite .visite-ctl{display:block}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/4.7.1/maplibre-gl.min.js"></script>
 <script>
-/* ===================== ARGOS · maquette v0.8 · clients et documents fictifs, parcelles réelles lues au cadastre ===================== */
+/* ===================== ARGOS · maquette v0.10 · clients et documents fictifs, parcelles réelles lues au cadastre ===================== */
 var MISE_A_JOUR = 'octobre 2026';
 
 var NOTAIRE = {
@@ -303,7 +303,7 @@ function couche(layer, format, style) {
     'https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0' +
     '&LAYER=' + layer + '&STYLE=' + encodeURIComponent(style || 'normal') +
     '&TILEMATRIXSET=PM&FORMAT=' + format + '&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}',
-    { maxZoom: 19, maxNativeZoom: layer.indexOf('CADASTRAL') === 0 ? 19 : 18, attribution: '© IGN · Géoplateforme' }
+    { maxZoom: 19, maxNativeZoom: 19, detectRetina: true, attribution: '© IGN · Géoplateforme' }
   );
 }
 
@@ -488,6 +488,8 @@ function afficherFiche(s) {
       '<button type="button" class="doc" data-doc>' + IC_DOC + 'Titre de propriété' + IC_DL + '</button>' +
       '<button type="button" class="doc" data-doc>' + IC_PLAN + 'Plan cadastral colorisé' + IC_DL + '</button>' +
       '<button type="button" class="doc" data-doc>' + IC_DOC + 'Bail en cours' + IC_DL + '</button>' +
+      '<button type="button" class="doc" data-doc>' + IC_DOC + 'Diagnostics techniques' + IC_DL + '</button>' +
+      '<button type="button" class="doc" data-doc>' + IC_DOC + 'Avis de taxe foncière' + IC_DL + '</button>' +
     '</div>' +
     '<div class="bloc"><h3>Vos interlocuteurs</h3>' +
       '<div class="interloc"><strong>' + NOTAIRE.nom + '</strong>' + NOTAIRE.role + '</div>' +
@@ -556,7 +558,7 @@ function afficherBandeauVisite() {
   document.getElementById('bandeauVisite').innerHTML =
     '<span class="rang">' + (rang + 1) + ' sur ' + parcours.length + '</span>' +
     '<div><h2>' + s.commune + '</h2><p>' + s.rue + ' · ' + s.nature + (s.surface ? ' · ' + s.surface : '') + '</p></div>' +
-    '<div class="liens"><span>Titre</span><span>Plan</span><span>Bail</span></div>';
+    '<div class="liens"><span>Titre</span><span>Plan</span><span>Bail</span><span>Diagnostics</span><span>Taxe foncière</span></div>';
 }
 function entrerVisite() {
   document.body.classList.add('visite');
@@ -608,7 +610,7 @@ function annoncer(t) {
   clearTimeout(minuteur); minuteur = setTimeout(function () { m.classList.remove('vu'); }, 3200);
 }
 
-/* ---------- Ouverture : survol aérien en 3D, bâtiments en volumes, balises sur les sites, puis le nom (une fois par session) ---------- */
+/* ---------- Ouverture : descente de drone sur la vue aérienne, parcelles allumées, balises sur les sites, puis le nom (une fois par session) ---------- */
 (function () {
   var intro = document.getElementById('intro');
   var dejaVue = false;
@@ -634,88 +636,61 @@ function annoncer(t) {
   var carte3d;
   try {
     carte3d = new maplibregl.Map({
-      container: 'introCarte', interactive: false, attributionControl: false, fadeDuration: 0,
-      center: [2.3200, 48.8600], zoom: 13.4, pitch: 35, bearing: -35,
-      style: { version: 8, sources: { ortho: { type: 'raster', tileSize: 256, maxzoom: 19,
+      container: 'introCarte', interactive: false, attributionControl: false, fadeDuration: 0, pixelRatio: Math.max(2, window.devicePixelRatio || 1), maxTileCacheSize: 600,
+      center: [2.3150, 48.8640], zoom: 12.6, pitch: 0, bearing: -25, maxPitch: 40,
+      style: { version: 8, sources: { ortho: { type: 'raster', tileSize: 128, maxzoom: 19,
         tiles: ['https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=ORTHOIMAGERY.ORTHOPHOTOS&STYLE=normal&TILEMATRIXSET=PM&FORMAT=image/jpeg&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}'] } },
-        layers: [{ id: 'fond', type: 'background', paint: { 'background-color': '#0F2238' } }, { id: 'ortho', type: 'raster', source: 'ortho', paint: { 'raster-fade-duration': 0 } }] }
+        layers: [{ id: 'fond', type: 'background', paint: { 'background-color': '#0F2238' } }, { id: 'ortho', type: 'raster', source: 'ortho', paint: { 'raster-fade-duration': 250, 'raster-contrast': 0.12, 'raster-saturation': 0.1 } }] }
     });
   } catch (e) { titreSeul(); return; }
 
   var parti = false;
   plus(function () { if (!parti) { titreSeul(); } }, 5000); /* fonds trop lents : on passe au titre */
-  /* Bâtiments en volumes : base BD TOPO de l'IGN (hauteur réelle), gratuite, via la Géoplateforme */
-  var dLat = 0.0085, dLng = 0.0125;
-  var cBati = [cLat - 0.004, cLng + 0.004];
-  var urlBati = 'https://data.geopf.fr/wfs/ows?SERVICE=WFS&VERSION=2.0.0&REQUEST=GetFeature&TYPENAMES=BDTOPO_V3:batiment' +
-    '&OUTPUTFORMAT=application/json&COUNT=9000&PROPERTYNAME=hauteur,geometrie&SRSNAME=urn:ogc:def:crs:EPSG::4326' +
-    '&BBOX=' + [cBati[0] - dLat, cBati[1] - dLng, cBati[0] + dLat, cBati[1] + dLng].join(',') + ',urn:ogc:def:crs:EPSG::4326';
-  var batiPret = window.fetch ? fetch(urlBati).then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); }).catch(function () { return null; }) : Promise.resolve(null);
-
-  function dansPolygone(pt, anneau) {
-    var x = pt[0], y = pt[1], dedans = false;
-    for (var i = 0, j = anneau.length - 1; i < anneau.length; j = i++) {
-      var xi = anneau[i][0], yi = anneau[i][1], xj = anneau[j][0], yj = anneau[j][1];
-      if (((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi)) dedans = !dedans;
-    }
-    return dedans;
-  }
-  function preparerBatiments(g) {
-    if (!g || !g.features || !g.features.length) return null;
-    /* Ordre des axes : on remet en longitude, latitude si le service répond en latitude, longitude */
-    var c0 = g.features[0].geometry.coordinates;
-    while (Array.isArray(c0[0])) c0 = c0[0];
-    var inverse = Math.abs(c0[0] - cLat) < Math.abs(c0[0] - cLng);
-    function fixe(c) { return Array.isArray(c[0]) ? c.map(fixe) : (inverse ? [c[1], c[0]] : c); }
-    var anneauxSites = survol.map(function (s) {
+  /* Contours réels des parcelles du client, lus au cadastre (ou contour de secours) */
+  function parcellesClient() {
+    return { type: 'FeatureCollection', features: survol.map(function (s) {
       var ll = formes.carte[s.id].getLatLngs();
-      while (ll.length && Array.isArray(ll[0]) && Array.isArray(ll[0][0])) ll = ll[0];
+      while (Array.isArray(ll[0]) && Array.isArray(ll[0][0])) ll = ll[0];
       if (Array.isArray(ll[0])) ll = ll[0];
-      return ll.map(function (p) { return [p.lng, p.lat]; });
-    });
-    g.features.forEach(function (f) {
-      f.geometry.coordinates = fixe(f.geometry.coordinates);
-      var pr = f.properties || (f.properties = {});
-      var hb = Number(pr.hauteur); pr.h = hb > 0 ? hb : 6;
-      var p0 = f.geometry.coordinates; while (Array.isArray(p0[0][0])) p0 = p0[0]; p0 = p0[0];
-      pr.client = anneauxSites.some(function (a) { return a.length > 2 && dansPolygone(p0, a); }) ||
-        survol.some(function (s) { return Math.abs(p0[0] - s.lng) < 0.0005 && Math.abs(p0[1] - s.lat) < 0.00035; }) ? 1 : 0;
-    });
-    return g;
+      var anneau = ll.map(function (p) { return [p.lng, p.lat]; });
+      anneau.push(anneau[0]);
+      return { type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: [anneau] } };
+    }) };
   }
-  function leverClients() {
+  function allumerParcelles() {
+    carte3d.addSource('client', { type: 'geojson', data: parcellesClient() });
+    carte3d.addLayer({ id: 'client-halo', type: 'line', source: 'client', paint: { 'line-color': '#FF2E6A', 'line-width': 14, 'line-blur': 10, 'line-opacity': 0 } });
+    carte3d.addLayer({ id: 'client-fond', type: 'fill', source: 'client', paint: { 'fill-color': '#A01040', 'fill-opacity': 0 } });
+    carte3d.addLayer({ id: 'client-trait', type: 'line', source: 'client', paint: { 'line-color': '#FFFFFF', 'line-width': 2, 'line-opacity': 0 } });
     var debut = performance.now();
     (function pas(t) {
-      var k = Math.min(1, (t - debut) / 1800); k = 1 - Math.pow(1 - k, 3);
-      if (carte3d.getLayer('bati-client')) carte3d.setPaintProperty('bati-client', 'fill-extrusion-height', ['*', ['get', 'h'], Math.max(k, 0.01)]);
-      if (k < 1 && !fini) requestAnimationFrame(pas);
+      if (fini) return;
+      var k = Math.min(1, (t - debut) / 1600);
+      var pulse = 0.75 + 0.25 * Math.sin((t - debut) / 380);
+      carte3d.setPaintProperty('client-halo', 'line-opacity', 0.9 * k * pulse);
+      carte3d.setPaintProperty('client-fond', 'fill-opacity', 0.38 * k);
+      carte3d.setPaintProperty('client-trait', 'line-opacity', k);
+      requestAnimationFrame(pas);
     })(debut);
   }
 
   carte3d.on('load', function () {
     if (parti || fini) return; parti = true;
-    batiPret.then(function (g) {
-      g = preparerBatiments(g);
-      if (!g || fini) return;
-      carte3d.addSource('bati', { type: 'geojson', data: g });
-      carte3d.addLayer({ id: 'bati-ville', type: 'fill-extrusion', source: 'bati', filter: ['==', ['get', 'client'], 0],
-        paint: { 'fill-extrusion-color': '#EEF2F6', 'fill-extrusion-height': ['get', 'h'], 'fill-extrusion-base': 0, 'fill-extrusion-opacity': 0.55, 'fill-extrusion-vertical-gradient': true } });
-      carte3d.addLayer({ id: 'bati-client', type: 'fill-extrusion', source: 'bati', filter: ['==', ['get', 'client'], 1],
-        paint: { 'fill-extrusion-color': '#A01040', 'fill-extrusion-height': 0.1, 'fill-extrusion-base': 0, 'fill-extrusion-opacity': 0.92 } });
-      plus(leverClients, 2600);
-    });
-    carte3d.easeTo({ center: [cLng, cLat - 0.0012], zoom: 16.2, pitch: 68, bearing: 20, duration: 7500, easing: function (t) { return 1 - Math.pow(1 - t, 3); } });
+    /* Descente de drone : vue verticale nette, rotation lente, légère inclinaison en fin de course */
+    carte3d.easeTo({ center: [cLng, cLat - 0.0004], zoom: 17.4, pitch: 14, bearing: 18, duration: 8000,
+      easing: function (t) { return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; } });
+    plus(allumerParcelles, 5200);
     survol.forEach(function (s, i) {
       var el = document.createElement('div');
       el.className = 'balise';
       el.innerHTML = '<div class="faisceau"></div><div class="pied-b"></div>' +
         '<div class="carte-b"><b>' + s.commune + '</b><span>' + s.rue + '</span><span>' + s.nature + (s.surface && s.surface !== '—' ? ' · ' + s.surface : '') + '</span><i></i></div>';
       new maplibregl.Marker({ element: el, anchor: 'bottom' }).setLngLat([s.lng, s.lat]).addTo(carte3d);
-      plus(function () { el.classList.add('pose'); }, 3400 + i * 1100);
+      plus(function () { el.classList.add('pose'); }, 6200 + i * 900);
     });
-    plus(function () { carte3d.easeTo({ bearing: 60, duration: 5000, easing: function (t) { return t; } }); }, 7000);
-    plus(function () { intro.classList.add('titre'); }, 7600);
-    plus(finir, 11200);
+    plus(function () { carte3d.easeTo({ bearing: 30, zoom: 17.6, duration: 4500, easing: function (t) { return t; } }); }, 8000);
+    plus(function () { intro.classList.add('titre'); }, 8600);
+    plus(finir, 12000);
   });
 })();
 
