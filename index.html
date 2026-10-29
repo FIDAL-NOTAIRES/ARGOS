@@ -235,13 +235,12 @@ body.visite .visite-ctl{display:block}
 body.accueil .corps{grid-template-columns:240px minmax(0,1fr) 320px}
 body.accueil .fiche{display:none}
 body.accueil .retour-liste{display:none}
+body:not(.accueil) .accueil-tete{display:none}
 /* v0.37 : le retour reste toujours visible, en tête de la colonne, hors de la partie qui défile */
-.accueil-liste{margin:14px 12px 4px;padding:14px 14px 12px;background:#fff;border:1px solid var(--brume-trait);border-radius:8px}
-.accueil-liste h2{margin:0;font-weight:400;font-size:20px;color:var(--nuit)}
-.accueil-liste .trait{width:30px;height:2px;background:var(--cyan);margin:9px 0 2px}
-.accueil-liste p{margin:8px 0 0;font-size:12.5px;line-height:1.5;color:#46525F}
-.accueil-liste button{margin-top:12px;width:100%;height:32px;border:1px solid var(--brume-trait);border-radius:6px;background:var(--brume);color:var(--nuit);font-size:13px}
-.accueil-liste button:hover{border-color:var(--carmin);color:var(--carmin)}
+.accueil-tete{padding:14px 14px 10px;border-bottom:1px solid var(--brume-trait);background:var(--brume-2)}
+.accueil-tete h2{margin:0;font-weight:400;font-size:19px;color:var(--nuit)}
+.accueil-tete h2::after{content:"";display:block;width:28px;height:2px;background:var(--cyan);margin-top:7px}
+.accueil-tete p{margin:7px 0 0;font-size:12.5px;line-height:1.45;color:#46525F}
 .tout-plier{display:flex;align-items:center;justify-content:flex-end;gap:4px;align-self:flex-end;background:none;border:0;padding:0 2px;font-size:12px;color:var(--canard-fonce)}
 .tout-plier svg{width:14px;height:14px;transition:transform .2s ease}
 .tout-plier[aria-expanded="true"] svg{transform:rotate(180deg)}
@@ -303,6 +302,10 @@ body.charge-cartes .carte-zone,body.charge-cartes .incrustations{opacity:0}
 
 <main class="corps">
   <aside class="liste" aria-label="Liste des sites">
+    <div class="accueil-tete" id="accueilTete">
+      <h2>Votre patrimoine</h2>
+      <p>Choisissez un site dans la liste ou sur la carte.</p>
+    </div>
     <div class="outils">
       <input id="recherche" type="search" placeholder="Commune ou rue" aria-label="Rechercher une commune ou une rue">
       <select id="region" aria-label="Filtrer par région"></select>
@@ -375,7 +378,7 @@ body.charge-cartes .carte-zone,body.charge-cartes .incrustations{opacity:0}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/4.7.1/maplibre-gl.min.js"></script>
 <script>
-/* ===================== ARGOS · maquette v0.42 · clients et documents fictifs, parcelles réelles lues au cadastre ===================== */
+/* ===================== ARGOS · maquette v0.43 · clients et documents fictifs, parcelles réelles lues au cadastre ===================== */
 var MISE_A_JOUR = 'octobre 2026';
 
 var NOTAIRE = {
@@ -724,15 +727,8 @@ var modeListe = 'region';
 function cpDe(com, liste) { return Array.from(new Set(liste.filter(function (s) { return s.commune === com; }).map(function (s) { return s.cp; }))).sort().join(', '); }
 function cleCom(s) { return s.region + '|' + s.commune; }
 /* v0.36 : l'invitation d'accueil se place dans la colonne de gauche, sous les régions ; la colonne fiche n'apparaît qu'au choix d'un site */
-function blocAccueil() {
-  if (courant !== null) return '';
-  return '<div class="accueil-liste">' +
-    '<h2>Votre patrimoine</h2>' +
-    '<div class="trait"></div>' +
-    '<p>Choisissez un site dans la liste ou sur la carte : sa fiche et ses documents s’ouvriront à côté.</p>' +
-    '<button type="button" data-ensemble>Voir l’ensemble des sites</button>' +
-  '</div>';
-}
+/* v0.43 : l'invitation d'accueil est en tête de colonne (HTML fixe, masquée dès qu'un site est ouvert) */
+function blocAccueil() { return ''; }
 function construireListe() {
   setTimeout(majToutPlier, 0);
   var q = sansAccent(champ.value.trim()), r = selRegion.value;
