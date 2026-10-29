@@ -270,8 +270,9 @@ body:not(.accueil) .accueil-tete{display:none}
 .arbre{list-style:none;margin:0 0 2px 6px;padding:0}
 .arbre li{position:relative;padding-left:17px}
 .arbre li::before{content:"";position:absolute;left:0;top:0;bottom:0;border-left:1.5px solid #86B6BA}
-.arbre li:last-child::before{bottom:50%}
-.arbre li::after{content:"";position:absolute;left:0;top:50%;width:12px;border-top:1.5px solid #86B6BA}
+.arbre li:last-child::before{display:none}
+/* v0.47 : coude arrondi entre le trait vertical et le document */
+.arbre li::after{content:"";position:absolute;left:0;top:0;height:50%;width:12px;border-left:1.5px solid #86B6BA;border-bottom:1.5px solid #86B6BA;border-bottom-left-radius:8px}
 .arbre .doc{padding:7px 0;border-bottom:0}
 .arbre li.sans-doc{font-size:12px;color:#6A7785;font-style:italic;padding-top:6px;padding-bottom:6px}
 .bloc .titre-bloc .signal{margin-left:8px;align-self:center}
@@ -427,7 +428,7 @@ body.charge-cartes .carte-zone,body.charge-cartes .incrustations{opacity:0}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/4.7.1/maplibre-gl.min.js"></script>
 <script>
-/* ===================== ARGOS · maquette v0.46 · clients et documents fictifs, parcelles réelles lues au cadastre ===================== */
+/* ===================== ARGOS · maquette v0.47 · clients et documents fictifs, parcelles réelles lues au cadastre ===================== */
 var MISE_A_JOUR = 'octobre 2026';
 
 var NOTAIRE = {
