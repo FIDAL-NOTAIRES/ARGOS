@@ -364,7 +364,7 @@ body.accueil .retour-liste{display:none}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/4.7.1/maplibre-gl.min.js"></script>
 <script>
-/* ===================== ARGOS · maquette v0.37 · clients et documents fictifs, parcelles réelles lues au cadastre ===================== */
+/* ===================== ARGOS · maquette v0.38 · clients et documents fictifs, parcelles réelles lues au cadastre ===================== */
 var MISE_A_JOUR = 'octobre 2026';
 
 var NOTAIRE = {
@@ -859,6 +859,13 @@ document.addEventListener('click', function (e) {
   if (e.target.closest('[data-retour]')) { afficherAccueil(); cadrerEnsemble(true); }
 });
 
+/* v0.38 : la carte s'ajuste à la taille réelle de la parcelle (petite parcelle de ville comme grand terrain portuaire),
+   avec une marge pour garder un peu d'environnement autour */
+function cadrerSite(s, duree) {
+  var b = formes.carte[s.id].getBounds();
+  carte.flyToBounds(b, { padding: [60, 60], maxZoom: 19, duration: duree });
+}
+
 /* ---------- Sélection d’un site ---------- */
 function choisir(id, centrer) {
   if (id === null || id === undefined) { afficherAccueil(); return; }
@@ -867,7 +874,7 @@ function choisir(id, centrer) {
   if (document.body.classList.contains('accueil')) { document.body.classList.remove('accueil'); carte.invalidateSize(); }
   ouverts[s.region] = true; ouverts[cleCom(s)] = true; ouverts['C|' + s.commune] = true;
   formes.carte.forEach(function (f, k) { f.setStyle(k === id ? STYLE_ACTIF : STYLE_NORMAL); });
-  if (centrer) carte.flyTo([s.lat, s.lng], 17, { duration: 0.8 });
+  if (centrer) cadrerSite(s, 0.8);
   construireListe();
   afficherFiche(s);
   var b = elListe.querySelector('.rue[data-id="' + id + '"]');
@@ -904,7 +911,7 @@ function allerVisite() {
   var s = parcours[rang];
   courant = s.id;
   formes.carte.forEach(function (f, k) { f.setStyle(k === s.id ? STYLE_ACTIF : STYLE_NORMAL); });
-  carte.flyTo([s.lat, s.lng], 18, { duration: 1.1 });
+  cadrerSite(s, 1.1);
   afficherBandeauVisite();
 }
 function afficherBandeauVisite() {
