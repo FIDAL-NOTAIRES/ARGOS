@@ -267,7 +267,8 @@ body:not(.accueil) .accueil-tete{display:none}
 .titre-theme[aria-expanded="true"] .chev{transform:rotate(90deg)}
 .titre-theme:hover{color:var(--carmin)}
 .titre-theme:focus-visible{outline:2px solid var(--canard);outline-offset:2px}
-.arbre{list-style:none;margin:0 0 2px 6px;padding:0}
+/* v0.48 : le trait part de la première lettre de la catégorie (flèche 13 px + écart 5 px) */
+.arbre{list-style:none;margin:0 0 2px 19px;padding:0}
 .arbre li{position:relative;padding-left:17px}
 .arbre li::before{content:"";position:absolute;left:0;top:0;bottom:0;border-left:1.5px solid #86B6BA}
 .arbre li:last-child::before{display:none}
@@ -428,7 +429,7 @@ body.charge-cartes .carte-zone,body.charge-cartes .incrustations{opacity:0}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/4.7.1/maplibre-gl.min.js"></script>
 <script>
-/* ===================== ARGOS · maquette v0.47 · clients et documents fictifs, parcelles réelles lues au cadastre ===================== */
+/* ===================== ARGOS · maquette v0.48 · clients et documents fictifs, parcelles réelles lues au cadastre ===================== */
 var MISE_A_JOUR = 'octobre 2026';
 
 var NOTAIRE = {
