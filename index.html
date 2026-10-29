@@ -164,8 +164,14 @@ body.visite .visite-ctl{display:block}
 /* Animation d'ouverture */
 #intro{position:fixed;inset:0;z-index:5000;background:var(--nuit);overflow:hidden;transition:opacity .9s ease}
 #intro.part{opacity:0}
-#introCarte{position:absolute;inset:0;opacity:0;transition:opacity .7s ease}
-#introCarte.pret{opacity:1}
+/* v0.49 : entrée de la vue aérienne — elle s'ouvre en cercle depuis le centre, d'abord floue et légèrement rapprochée,
+   puis se précise ; un anneau cyan accompagne l'ouverture */
+#introCarte{position:absolute;inset:0;opacity:0;clip-path:circle(0% at 50% 50%);filter:blur(14px) brightness(1.25);transform:scale(1.1);
+  transition:clip-path 1.9s cubic-bezier(.65,0,.35,1),opacity .8s ease,filter 2.2s ease,transform 2.8s cubic-bezier(.2,.7,.2,1)}
+#introCarte.pret{opacity:1;clip-path:circle(150% at 50% 50%);filter:none;transform:none}
+.anneau-intro{position:absolute;left:50%;top:50%;width:40px;height:40px;margin:-20px 0 0 -20px;border-radius:50%;border:2px solid var(--cyan);opacity:0;pointer-events:none;box-shadow:0 0 24px rgba(109,213,220,.55)}
+.anneau-intro.part{animation:anneauIntro 1.9s cubic-bezier(.65,0,.35,1) forwards}
+@keyframes anneauIntro{0%{opacity:.95;transform:scale(.2)}70%{opacity:.7}100%{opacity:0;transform:scale(60)}}
 #intro .voile-intro{position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at 50% 40%,rgba(15,34,56,0) 40%,rgba(15,34,56,.75) 100%),linear-gradient(to top,rgba(15,34,56,.85),rgba(15,34,56,0) 45%)}
 .intro-boite{position:absolute;left:0;right:0;bottom:12%;display:flex;flex-direction:column;align-items:center;opacity:0;pointer-events:none}
 #intro.titre .intro-boite{opacity:1}
@@ -277,6 +283,13 @@ body:not(.accueil) .accueil-tete{display:none}
 .arbre .doc{padding:7px 0;border-bottom:0}
 .arbre li.sans-doc{font-size:12px;color:#6A7785;font-style:italic;padding-top:6px;padding-bottom:6px}
 .bloc .titre-bloc .signal{margin-left:8px;align-self:center}
+.ligne span:last-child{text-align:right}
+.ligne.date span:last-child{white-space:nowrap}
+.indice{margin-top:8px;padding:7px 10px;border-radius:6px;background:var(--lagon);font-size:12.5px}
+.indice .lib{display:block;color:#3D4B59}
+.indice .val{display:inline-block;margin-top:2px;font-size:16px;font-weight:600;color:var(--nuit);margin-right:8px}
+.indice small{font-size:11.5px;color:var(--canard-fonce)}
+.indice.dernier{background:#EEF3F8}
 .retour-liste{display:flex;flex:none;align-items:center;justify-content:center;gap:8px;margin:10px 12px 4px;width:calc(100% - 24px);height:38px;border:0;border-radius:8px;background:var(--nuit);color:#fff;font-size:13px;box-shadow:0 1px 3px rgba(15,34,56,.25)}
 .retour-liste svg{width:16px;height:16px;color:var(--cyan)}
 .retour-liste:hover{background:#1A3352}
@@ -330,6 +343,7 @@ body.charge-cartes .carte-zone,body.charge-cartes .incrustations{opacity:0}
 
 <div id="intro" role="presentation" aria-hidden="true">
   <div id="introCarte"></div>
+  <div class="anneau-intro" id="anneauIntro"></div>
   <div class="voile-intro"></div>
   <div class="intro-boite">
     <div class="nom-intro">ARGOS</div>
@@ -429,7 +443,7 @@ body.charge-cartes .carte-zone,body.charge-cartes .incrustations{opacity:0}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/4.7.1/maplibre-gl.min.js"></script>
 <script>
-/* ===================== ARGOS · maquette v0.48 · clients et documents fictifs, parcelles réelles lues au cadastre ===================== */
+/* ===================== ARGOS · maquette v0.49 · clients et documents fictifs, parcelles réelles lues au cadastre ===================== */
 var MISE_A_JOUR = 'octobre 2026';
 
 var NOTAIRE = {
@@ -496,6 +510,66 @@ function signalRue(s) {
 function signalTitre(s) {
   var a = alerteSite(s);
   return a ? '<i class="signal ' + a + '" title="' + (a === 'echue' ? 'Une échéance est dépassée' : 'Une échéance approche (moins de six mois)') + '"></i>' : '';
+}
+/* v0.49 : BAIL COMMERCIAL — détail des indications du bail (dates FICTIVES pour la maquette, cohérentes avec les échéances)
+   et indice de référence ILC : valeurs lues à l'Insee par /api/ilc (série 001532540) ; à défaut, table enregistrée ci-dessous */
+var ILC_ENREGISTRE = {
+  '2016-Q1': 108.40, '2016-Q2': 108.40, '2016-Q3': 108.56, '2016-Q4': 108.91, '2017-Q1': 109.46, '2017-Q2': 110.00, '2017-Q3': 110.78, '2017-Q4': 111.33,
+  '2018-Q1': 111.87, '2018-Q2': 112.59, '2018-Q3': 113.45, '2018-Q4': 114.06, '2019-Q1': 114.64, '2019-Q2': 115.21, '2019-Q3': 115.60, '2019-Q4': 116.16,
+  '2020-Q1': 116.23, '2020-Q2': 115.42, '2020-Q3': 115.70, '2020-Q4': 115.79, '2021-Q1': 116.73, '2021-Q2': 118.41, '2021-Q3': 119.70, '2021-Q4': 118.59,
+  '2022-Q1': 120.61, '2022-Q2': 123.65, '2022-Q3': 126.13, '2022-Q4': 126.05, '2023-Q1': 128.68, '2023-Q2': 131.81,
+  '2024-Q1': 134.58, '2024-Q2': 136.72, '2024-Q3': 137.71, '2024-Q4': 135.30, '2025-Q2': 136.81, '2026-Q1': 135.26, '2026-Q2': 137.16
+};
+var ILC = { valeurs: ILC_ENREGISTRE, dernier: '2026-Q2', publie: '2026-09-23', direct: false };
+function chargerIlc() {
+  if (!window.fetch) return;
+  fetch('/api/ilc').then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); }).then(function (d) {
+    if (!d.observations || !d.observations.length) return;
+    var v = {}; d.observations.forEach(function (o) { v[o.periode] = o.valeur; });
+    ILC = { valeurs: v, dernier: d.observations[d.observations.length - 1].periode, publie: d.publie, direct: true };
+    if (courant !== null) afficherFiche(SITES[courant]);
+  }).catch(function () { /* on garde la table enregistrée */ });
+}
+function libTrimestre(p) { var a = p.slice(0, 4), q = +p.slice(-1); return (q === 1 ? '1er' : q + 'e') + ' trimestre ' + a; }
+function dateLongue(d) { return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }); }
+/* trimestre du dernier indice paru à une date donnée (l'Insee publie l'ILC environ 12 semaines après la fin du trimestre) */
+function trimestreParuA(d) {
+  var a = d.getFullYear(), q = Math.floor(d.getMonth() / 3) + 1;
+  for (var n = 0; n < 12; n++) {
+    var fin = new Date(a, q * 3, 0); fin.setDate(fin.getDate() + 84);
+    if (fin <= d) return a + '-Q' + q;
+    q--; if (q === 0) { q = 4; a--; }
+  }
+  return null;
+}
+function bail(s) {
+  if (s.id % 3 === 2) return null;
+  var i = s.id % 14;
+  var expiration = plusJours(DECALAGES_BAIL[i]);
+  var entree = new Date(expiration); entree.setDate(entree.getDate() + 1); entree.setFullYear(entree.getFullYear() - 9);
+  var signature = new Date(entree); signature.setDate(signature.getDate() - (20 + (i * 13) % 40));
+  return { signature: signature, entree: entree, expiration: expiration, duree: '9 ans', triennale: i % 4 !== 3, trimRef: trimestreParuA(signature) };
+}
+function blocBail(s) {
+  var b = bail(s);
+  if (!b) return '';
+  var ref = b.trimRef && ILC.valeurs[b.trimRef];
+  var der = ILC.valeurs[ILC.dernier];
+  function ligne(l, v, d) { return '<div class="ligne' + (d ? ' date' : '') + '"><span>' + l + '</span><span>' + v + '</span></div>'; }
+  return '<div class="bloc">' + titreBloc('bail', 'Bail commercial') + (etatBlocs.bail ? '<div class="contenu-bloc">' : '<div class="contenu-bloc" hidden>') +
+    ligne('Date de signature', dateLongue(b.signature), true) +
+    ligne('Date d’entrée en vigueur', dateLongue(b.entree), true) +
+    ligne('Date d’expiration', dateLongue(b.expiration), true) +
+    ligne('Durée du bail', b.duree) +
+    ligne('Faculté de résiliation triennale', b.triennale ? 'Oui' : 'Non') +
+    '<div class="indice"><span class="lib">Indice de référence (ILC) à la date de signature</span>' +
+      '<span class="val">' + (ref ? ref.toLocaleString('fr-FR', { minimumFractionDigits: 2 }) : 'valeur non disponible') + '</span>' +
+      '<small>' + (b.trimRef ? libTrimestre(b.trimRef) : '') + '</small></div>' +
+    '<div class="indice dernier"><span class="lib">Dernier indice connu (ILC)</span>' +
+      '<span class="val">' + (der ? der.toLocaleString('fr-FR', { minimumFractionDigits: 2 }) : '—') + '</span>' +
+      '<small>' + libTrimestre(ILC.dernier) + (ILC.publie ? ', publié par l’Insee le ' + dateLongue(new Date(ILC.publie + 'T12:00:00')) : '') + '</small></div>' +
+    '<div class="note-maquette">Source des indices : Insee, série 001532540' + (ILC.direct ? ' (lue en direct).' : ' (valeurs enregistrées).') + ' Maquette : dates du bail fictives.</div>' +
+  '</div></div>';
 }
 function codeSite(s) { return 'ARG-' + ('00' + (s.id + 1)).slice(-3); }
 
@@ -955,6 +1029,7 @@ function afficherFiche(s) {
       '<div class="ligne"><span>Zonage d’urbanisme</span><span>' + (s.zonage || '…') + '</span></div>' +
       '<div class="ligne"><span>Région</span><span>' + s.region + '</span></div>' +
     '</div></div>' +
+    blocBail(s) +
     '<div class="bloc">' + titreBloc('echeances', 'Échéances à surveiller' + signalTitre(s)) + (etatBlocs.echeances ? '<div class="contenu-bloc">' : '<div class="contenu-bloc" hidden>') +
       echeances(s).map(function (e) {
         return '<div class="echeance ' + e.etat + '"><span class="lib">' + e.libelle + '</span>' +
@@ -986,7 +1061,7 @@ function afficherFiche(s) {
     '</div></div>';
 }
 /* Blocs repliables de la fiche : caractéristiques repliées par défaut, documents dépliés ; le choix est gardé d'un site à l'autre */
-var etatBlocs = { carac: false, echeances: false, docs: true, assist: false };
+var etatBlocs = { carac: false, bail: false, echeances: false, docs: true, assist: false };
 /* catégories de documents : toutes dépliées par défaut ; le choix est gardé d'un site à l'autre */
 var etatThemes = {};
 function docsTousOuverts() { return THEMES.every(function (t) { return etatThemes[t.titre] !== false; }); }
@@ -1331,7 +1406,7 @@ function annoncer(t) {
   carte3d.on('load', function () {
     if (parti || fini) return; parti = true;
     var lance = false;
-    function lancer() { if (lance || fini) return; lance = true; document.getElementById('introCarte').classList.add('pret'); demarrer(); }
+    function lancer() { if (lance || fini) return; lance = true; document.getElementById('introCarte').classList.add('pret'); document.getElementById('anneauIntro').classList.add('part'); demarrer(); }
     carte3d.once('idle', lancer);
     setTimeout(lancer, 3500);
   });
@@ -1415,6 +1490,7 @@ cadrerEnsemble(false);
 synchroniser();
 dessinerPastilles();
 ajusterSobriete();
+chargerIlc();
 /* v0.40 : au chargement, les cartes restent voilées tant que leurs tuiles arrivent, puis apparaissent ensemble en fondu
    (plus d'apparition carré par carré) ; au plus tard après six secondes, on dévoile quand même */
 (function () {
