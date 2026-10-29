@@ -185,6 +185,54 @@ body.visite .visite-ctl{display:block}
 @keyframes apparait{to{opacity:1}}
 .passer{position:absolute;right:24px;bottom:calc(24px + env(safe-area-inset-bottom,0px));z-index:3;background:rgba(15,34,56,.55);color:#fff;border:1px solid rgba(255,255,255,.45);border-radius:6px;padding:7px 14px;font-size:13px}
 .passer:hover{background:rgba(15,34,56,.85)}
+/* ===================== Esthétique v0.33 =====================
+   Liste des sites : bleu brume, dans la famille du bleu nuit du bandeau.
+   Fiche : canard très pâle ; ses blocs deviennent des feuillets blancs posés dessus.
+   Le site sélectionné prend la teinte de la fiche, comme un onglet qui s'ouvre sur elle. */
+:root{ --brume:#EAF0F5; --brume-2:#DDE6EE; --brume-trait:#D3DDE7; --lagon:#EFF6F6; --lagon-trait:#D5E6E7; --canard-fonce:#245F65; }
+.tete{border-bottom:1px solid rgba(109,213,220,.35)}
+.liste{background:var(--brume);border-right:1px solid var(--brume-trait)}
+.outils{border-bottom:1px solid var(--brume-trait)}
+.outils input,.outils select{border-color:var(--brume-trait)}
+.vues{border-color:var(--brume-trait);background:#fff}
+.pli:hover,.rue:hover{background:rgba(255,255,255,.6)}
+.pli.reg{border-top:1px solid var(--brume-trait);color:var(--canard-fonce)}
+.pli small{color:#6A7785}
+.rue{color:#2A3644}
+.rue.actif{background:var(--lagon);color:var(--carmin);box-shadow:inset 0 1px 0 var(--lagon-trait),inset 0 -1px 0 var(--lagon-trait)}
+.resume{background:var(--brume-2);border-top:1px solid var(--brume-trait)}
+.resume strong{color:var(--nuit);font-size:22px}
+.defile{scrollbar-width:thin;scrollbar-color:#B9C6D3 transparent}
+
+.fiche{background:var(--lagon);border-right:1px solid var(--lagon-trait);padding:20px 16px 14px;scrollbar-width:thin;scrollbar-color:#B5CFD1 transparent}
+.fiche h2{font-size:24px;line-height:1.15;letter-spacing:-.005em}
+.fiche .adr{color:#4E5D6B}
+.fiche .adr::after{content:"";display:block;width:36px;height:2px;background:var(--cyan);margin-top:12px}
+.nav-site button{border-color:var(--lagon-trait)}
+.nav-site button:hover:not(:disabled){border-color:var(--canard);color:var(--canard-fonce);background:#fff}
+.nav-site button:disabled{opacity:.45;cursor:default}
+.bloc{background:#fff;border:1px solid var(--lagon-trait);border-radius:8px;padding:11px 12px;margin-top:10px}
+.bloc .titre-bloc{font-size:13px;color:var(--nuit)}
+.bloc .titre-bloc .chev{color:var(--canard)}
+.theme{margin-top:12px}
+.theme:first-child{margin-top:4px}
+.theme h4{text-transform:none;letter-spacing:0;font-size:12px;color:var(--canard-fonce)}
+.doc{border-bottom-color:#EDF2F3;border-radius:4px}
+.doc:last-child{border-bottom:0}
+.doc:hover{background:var(--lagon);color:var(--carmin)}
+.doc svg{color:var(--canard)}
+.sans-doc{border-bottom:0}
+.ligne{border-bottom:1px solid #EDF2F3;padding:5px 0}
+.ligne:last-child{border-bottom:0}
+.carte-contact{border-left-color:var(--cyan)}
+.carte-contact .domaine{text-transform:none;letter-spacing:0;font-size:12px;font-weight:600}
+.accueil-fiche .lieu{text-transform:none;letter-spacing:0;font-size:13px;font-weight:600}
+.accueil-fiche h2{font-size:26px}
+.accueil-fiche button{border-color:var(--lagon-trait)}
+.pied a{color:#4E5D6B}
+.legende{max-width:calc(100% - 165px)}
+.bloc .titre-bloc{align-items:flex-start;line-height:1.35}
+.bloc .titre-bloc .chev{flex:none;margin-top:2px}
 @media (prefers-reduced-motion: reduce){#intro{display:none}}
 @media (max-width:1100px){
   body{overflow:auto}
@@ -301,7 +349,7 @@ body.visite .visite-ctl{display:block}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/4.7.1/maplibre-gl.min.js"></script>
 <script>
-/* ===================== ARGOS · maquette v0.32 · clients et documents fictifs, parcelles réelles lues au cadastre ===================== */
+/* ===================== ARGOS · maquette v0.33 · clients et documents fictifs, parcelles réelles lues au cadastre ===================== */
 var MISE_A_JOUR = 'octobre 2026';
 
 var NOTAIRE = {
@@ -462,7 +510,8 @@ function etiqueterZones() {
   var codes = Object.keys(vues).sort(function (a, b) { return a.localeCompare(b, 'fr', { numeric: true }); });
   leg.innerHTML = codes.length
     ? codes.map(function (c) { return '<span title="' + (vues[c].nom || c).replace(/"/g, '&quot;') + '"><i style="background:' + vues[c].couleur + '"></i>' + c + '</span>'; }).join('')
-    : '<span>Zonage en cours de lecture…</span>';
+    : '';
+  leg.style.visibility = codes.length ? '' : 'hidden';
 }
 var planGris = couche('GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2', 'image/png'); planGris.options.className = 'fond-gris';
 var fondUrba = L.layerGroup([planGris, zonesUrba, calqueEtiquettes]);
