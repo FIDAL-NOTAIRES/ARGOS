@@ -261,7 +261,7 @@ body.visite .visite-ctl{display:block}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/4.7.1/maplibre-gl.min.js"></script>
 <script>
-/* ===================== ARGOS · maquette v0.10 · clients et documents fictifs, parcelles réelles lues au cadastre ===================== */
+/* ===================== ARGOS · maquette v0.11 · clients et documents fictifs, parcelles réelles lues au cadastre ===================== */
 var MISE_A_JOUR = 'octobre 2026';
 
 var NOTAIRE = {
@@ -694,13 +694,61 @@ function annoncer(t) {
   });
 })();
 
+/* ---------- Vraies parcelles : contour lu au cadastre (API Carto IGN, gratuite) ---------- */
+/* Si le point tombe sur la voirie (non cadastrée), on cherche la parcelle la plus proche en spirale (~25 à 60 m) */
+var DECALAGES = [[0, 0], [0.00022, 0], [-0.00022, 0], [0, 0.0003], [0, -0.0003], [0.00022, 0.0003], [-0.00022, -0.0003], [0.00022, -0.0003], [-0.00022, 0.0003],
+  [0.00045, 0], [-0.00045, 0], [0, 0.0006], [0, -0.0006]];
+function demanderParcelle(lng, lat) {
+  var geom = encodeURIComponent(JSON.stringify({ type: 'Point', coordinates: [lng, lat] }));
+  return fetch('https://apicarto.ign.fr/api/cadastre/parcelle?geom=' + geom)
+    .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+    .then(function (g) { return (g.features && g.features[0]) || null; });
+}
+function lireParcelle(s) {
+  if (!window.fetch) return Promise.resolve();
+  var i = 0;
+  function essai() {
+    if (i >= DECALAGES.length) return Promise.reject(new Error('aucune parcelle'));
+    var d = DECALAGES[i++];
+    return demanderParcelle(s.lng + d[1], s.lat + d[0]).then(function (f) { return f || essai(); });
+  }
+  return essai()
+    .then(function (f) {
+      var pr = f.properties || {};
+      s.parcelles = [(pr.section || '') + ' ' + String(pr.numero || '').replace(/^0+/, '')];
+      if (pr.contenance) s.surface = Number(pr.contenance).toLocaleString('fr-FR') + ' m²';
+      var anneaux = f.geometry.type === 'MultiPolygon' ? f.geometry.coordinates : [f.geometry.coordinates];
+      var ll = anneaux.map(function (poly) { return poly.map(function (an) { return an.map(function (c) { return [c[1], c[0]]; }); }); });
+      formes.carte[s.id].setLatLngs(ll);
+      formes.aerienne[s.id].setLatLngs(ll);
+      formes.cadastre[s.id].setLatLngs(ll);
+      var c = formes.carte[s.id].getBounds().getCenter();
+      s.lat = c.lat; s.lng = c.lng;
+    })
+    .catch(function () { if (!s.parcelles) { s.parcelles = ['non lue']; s.surface = '—'; } })
+    .then(function () { lireZonage(s); if (courant === s.id) afficherFiche(s); });
+}
+function lireZonage(s) {
+  if (!window.fetch) return;
+  var geom = encodeURIComponent(JSON.stringify({ type: 'Point', coordinates: [s.lng, s.lat] }));
+  fetch('https://apicarto.ign.fr/api/gpu/zone-urba?geom=' + geom)
+    .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+    .then(function (g) {
+      var f = g.features && g.features[0];
+      if (!f) { s.zonage = 'aucun document en ligne'; return; }
+      var p = f.properties || {};
+      s.zonage = (p.libelle || p.typezone || '?') + (p.libelong ? ' · ' + (p.libelong.length > 60 ? p.libelong.slice(0, 58) + '…' : p.libelong) : '');
+    })
+    .catch(function () { s.zonage = 'non lu'; })
+    .then(function () { if (courant === s.id) afficherFiche(s); });
+}
+
 /* ---------- Démarrage ---------- */
 construireListe();
 carte.fitBounds(L.latLngBounds(SITES.map(function (s) { return [s.lat, s.lng]; })).pad(0.15));
 synchroniser();
 choisir(visibles[0].id, false);
 SITES.forEach(lireParcelle);
-SITES.forEach(lireZonage);
 </script>
 </body>
 </html>
