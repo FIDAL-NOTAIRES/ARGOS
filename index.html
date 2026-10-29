@@ -44,7 +44,7 @@ button{font:inherit;cursor:pointer}
 .defile{overflow-y:auto;flex:1;padding:6px 0 16px}
 .resume{border-top:1px solid var(--trait);padding:12px 14px 14px;display:grid;grid-template-columns:1fr 1fr;gap:8px 12px;background:var(--fond)}
 .resume div{font-size:12px;color:var(--doux)}
-.resume strong{display:block;font-family:Georgia,serif;font-weight:400;font-size:20px;color:var(--nuit)}
+.resume strong{display:block;font-weight:400;font-size:20px;color:var(--nuit)}
 .resume .large{grid-column:1 / -1}
 .pli{display:flex;align-items:center;gap:8px;width:100%;background:none;border:0;text-align:left;color:var(--nuit)}
 .pli:hover{background:var(--fond)}
@@ -53,8 +53,7 @@ button{font:inherit;cursor:pointer}
 .pli[aria-expanded="true"] .chev{transform:rotate(90deg)}
 .pli small{margin-left:auto;font-size:11px;color:var(--doux)}
 .pli.reg{font-size:12px;font-weight:600;letter-spacing:.02em;color:var(--canard);padding:10px 14px;border-top:1px solid #EEF0F3}
-.pli.com{font-family:Georgia,serif;font-size:15px;padding:7px 14px 7px 26px}
-.pli.com small{font-family:"Segoe UI",sans-serif}
+.pli.com{font-size:15px;padding:7px 14px 7px 26px}
 .rue{display:block;width:100%;text-align:left;background:none;border:0;border-left:3px solid transparent;padding:6px 14px 6px 50px;font-size:13px;color:var(--texte)}
 .rue:hover{background:var(--fond)}
 .rue.actif{border-left-color:var(--carmin);background:#FBEFF3;color:var(--carmin);font-weight:600}
@@ -98,11 +97,9 @@ button{font:inherit;cursor:pointer}
 .accueil-fiche .trait{width:34px;height:2px;background:var(--cyan);margin:12px 0 4px}
 .accueil-fiche button{margin-top:16px;width:100%;height:36px;border:1px solid var(--trait);border-radius:6px;background:#fff;color:var(--nuit);font-size:13px}
 .accueil-fiche button:hover{border-color:var(--carmin);color:var(--carmin)}
-.leaflet-tooltip.monument{background:rgba(15,34,56,.88);color:#fff;border:0;border-left:2px solid var(--carmin);border-radius:2px 4px 4px 2px;font-family:Georgia,serif;font-size:13px;padding:4px 10px;box-shadow:0 2px 8px rgba(0,0,0,.25)}
-.leaflet-tooltip.monument::before{display:none}
 .pastille{width:16px;height:16px;border-radius:50%;background:#A01040;border:2px solid #fff;box-shadow:0 0 0 2px rgba(160,16,64,.35),0 0 12px rgba(160,16,64,.7);cursor:pointer;transition:transform .15s}
 .pastille:hover{transform:scale(1.25)}
-.pastille.groupe{width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-family:Georgia,serif;font-size:13px;color:#fff}
+.pastille.groupe{width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:13px;color:#fff}
 .sans-doc{font-size:12px;color:var(--doux);font-style:italic;padding:4px 0 6px;border-bottom:1px solid #EEF0F3}
 .genere{font-size:10px;color:var(--canard);border:1px solid var(--canard);border-radius:3px;padding:0 4px;margin-left:6px}
 .assist{margin-top:auto;padding-top:20px}
@@ -126,7 +123,7 @@ button{font:inherit;cursor:pointer}
 .pied{margin-top:auto;padding-top:24px;font-size:12px;text-align:right}
 .pied a{color:var(--doux);text-decoration:none;border-bottom:1px dotted var(--doux)}
 .pied a:hover{color:var(--canard);border-bottom-color:var(--canard)}
-.fiche h2{font-family:Georgia,serif;font-weight:400;font-size:22px;margin:0;color:var(--nuit)}
+.fiche h2{font-weight:400;font-size:22px;margin:0;color:var(--nuit)}
 .fiche .adr{margin:4px 0 0;font-size:14px;color:var(--doux)}
 .nav-site{display:flex;gap:8px;margin:14px 0 16px}
 .nav-site button{flex:1;height:32px;border:1px solid var(--trait);border-radius:6px;background:#fff;font-size:13px;color:var(--nuit)}
@@ -159,14 +156,14 @@ body.visite .visite-ctl{display:block}
 .fleche.g{left:20px}.fleche.d{right:20px}
 .bandeau-visite{position:absolute;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:600;background:#fff;border-radius:10px;box-shadow:0 4px 16px rgba(15,34,56,.2);padding:12px 18px;display:flex;align-items:center;gap:18px;max-width:calc(100% - 140px)}
 .bandeau-visite .rang{font-size:12px;color:var(--doux);white-space:nowrap}
-.bandeau-visite h2{font-family:Georgia,serif;font-weight:400;font-size:20px;margin:0;color:var(--nuit)}
+.bandeau-visite h2{font-weight:400;font-size:20px;margin:0;color:var(--nuit)}
 .bandeau-visite p{margin:2px 0 0;font-size:13px;color:var(--doux)}
 .bandeau-visite .liens{display:flex;gap:12px;font-size:13px;color:var(--canard);white-space:nowrap}
 /* Fenêtre contact et message */
 .voile{position:fixed;inset:0;background:rgba(15,34,56,.45);z-index:2000;display:none;align-items:center;justify-content:center;padding:20px}
 .voile.ouvert{display:flex}
 .fenetre{background:#fff;border-radius:10px;max-width:440px;width:100%;padding:22px 24px}
-.fenetre h2{font-family:Georgia,serif;font-weight:400;margin:0 0 12px;color:var(--nuit)}
+.fenetre h2{font-weight:400;margin:0 0 12px;color:var(--nuit)}
 .fenetre .fermer{margin-top:16px;height:34px;border:1px solid var(--trait);background:#fff;border-radius:6px;padding:0 14px}
 #message{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);opacity:0;background:var(--nuit);color:#fff;border-radius:8px;padding:10px 16px;font-size:13px;z-index:3000;transition:opacity .25s,transform .25s;pointer-events:none;max-width:90%}
 #message.vu{opacity:1;transform:translateX(-50%) translateY(0)}
@@ -188,24 +185,6 @@ body.visite .visite-ctl{display:block}
 @keyframes apparait{to{opacity:1}}
 .passer{position:absolute;right:24px;bottom:calc(24px + env(safe-area-inset-bottom,0px));z-index:3;background:rgba(15,34,56,.55);color:#fff;border:1px solid rgba(255,255,255,.45);border-radius:6px;padding:7px 14px;font-size:13px}
 .passer:hover{background:rgba(15,34,56,.85)}
-.alerte{position:relative;width:34px;height:34px;opacity:0;transform:scale(.4);transition:opacity .4s ease,transform .5s cubic-bezier(.2,1.5,.4,1)}
-.alerte.pose{opacity:1;transform:none}
-.alerte svg{position:absolute;inset:0;width:34px;height:34px;filter:drop-shadow(0 2px 6px rgba(0,0,0,.45))}
-.alerte::before{content:"";position:absolute;left:50%;top:60%;width:14px;height:14px;margin:-7px 0 0 -7px;border-radius:50%;border:2px solid #FF982D;animation:onde 1.6s ease-out infinite}
-.balise{position:relative;width:2px;height:170px;opacity:0}
-.balise.pose{opacity:1}
-.balise .faisceau{position:absolute;left:0;bottom:0;width:2px;height:100%;transform-origin:50% 100%;transform:scaleY(0);background:linear-gradient(to top,rgba(160,16,64,1),rgba(160,16,64,.55) 55%,rgba(109,213,220,.9));box-shadow:0 0 10px rgba(160,16,64,.9),0 0 22px rgba(160,16,64,.5)}
-.balise.pose .faisceau{animation:monte 1.1s cubic-bezier(.2,.8,.2,1) forwards}
-@keyframes monte{to{transform:scaleY(1)}}
-.balise .pied-b{position:absolute;left:-6px;bottom:-6px;width:14px;height:14px;border-radius:50%;background:#A01040;box-shadow:0 0 0 3px rgba(255,255,255,.85),0 0 18px 4px rgba(160,16,64,.8)}
-.balise.pose .pied-b::after{content:"";position:absolute;inset:-3px;border-radius:50%;border:2px solid rgba(160,16,64,.8);animation:onde 2s ease-out .4s infinite}
-@keyframes onde{from{transform:scale(1);opacity:1}to{transform:scale(3.4);opacity:0}}
-.balise .carte-b{position:absolute;left:12px;top:-6px;min-width:190px;padding:9px 14px 10px;background:rgba(15,34,56,.86);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);border-left:2px solid #A01040;border-radius:2px 6px 6px 2px;box-shadow:0 8px 24px rgba(0,0,0,.35);opacity:0;transform:translateX(-8px)}
-.balise.pose .carte-b{animation:glisse .6s .9s ease-out forwards}
-@keyframes glisse{to{opacity:1;transform:none}}
-.balise .carte-b b{display:block;font-family:Georgia,serif;font-weight:400;font-size:17px;color:#fff;letter-spacing:.02em}
-.balise .carte-b span{display:block;margin-top:2px;font-size:12px;color:#B9C6D3}
-.balise .carte-b i{display:block;width:28px;height:2px;background:var(--cyan);margin-top:7px}
 @media (prefers-reduced-motion: reduce){#intro{display:none}}
 @media (max-width:1100px){
   body{overflow:auto}
@@ -322,7 +301,7 @@ body.visite .visite-ctl{display:block}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/4.7.1/maplibre-gl.min.js"></script>
 <script>
-/* ===================== ARGOS · maquette v0.30 · clients et documents fictifs, parcelles réelles lues au cadastre ===================== */
+/* ===================== ARGOS · maquette v0.31 · clients et documents fictifs, parcelles réelles lues au cadastre ===================== */
 var MISE_A_JOUR = 'octobre 2026';
 
 var NOTAIRE = {
@@ -861,7 +840,7 @@ function annoncer(t) {
   clearTimeout(minuteur); minuteur = setTimeout(function () { m.classList.remove('vu'); }, 3200);
 }
 
-/* ---------- Ouverture : descente de drone sur la vue aérienne, parcelles allumées, balises sur les sites, puis le nom (une fois par session) ---------- */
+/* ---------- Ouverture : descente de drone sur la vue aérienne, parcelles allumées, puis le nom (une fois par session) ---------- */
 (function () {
   var intro = document.getElementById('intro');
   var dejaVue = false;
@@ -908,10 +887,9 @@ function annoncer(t) {
       return { type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: [anneau] } };
     }) };
   }
-  /* Pour l'ouverture : d'autres immeubles du client (carmin) et des zones signalées (alertes), autour des deux sites */
+  /* Pour l'ouverture : d'autres immeubles du client (carmin), autour des deux sites */
   var AUTRES = [[48.8722, 2.3088], [48.8746, 2.3058], [48.8716, 2.3030], [48.8731, 2.3112], [48.8702, 2.3066], [48.8739, 2.3027], [48.8707, 2.3118],
     [48.8752, 2.3090], [48.8712, 2.3045], [48.8726, 2.3048], [48.8718, 2.3125], [48.8748, 2.3115], [48.8755, 2.3040], [48.8735, 2.3075]];
-  var ALERTES = [AUTRES[0], AUTRES[2]];
   /* Si le point tombe sur la voirie, on cherche la parcelle voisine (petite spirale) */
   var PAS_SPIRALE = [[0, 0], [0.00022, 0], [-0.00022, 0], [0, 0.0003], [0, -0.0003]];
   function lireAutour(lat, lng) {
@@ -936,18 +914,6 @@ function annoncer(t) {
     });
   }
   var autresPret = lirePoints(AUTRES);
-  function signalerAlertes() {
-    Promise.resolve().then(function () {
-      if (fini) return;
-      ALERTES.forEach(function (pt, i) {
-        var el = document.createElement('div');
-        el.className = 'alerte';
-        el.innerHTML = '<svg viewBox="0 0 34 34"><path d="M17 3 L32 30 H2 Z" fill="#FF982D" stroke="#fff" stroke-width="2" stroke-linejoin="round"/><rect x="15.5" y="12" width="3" height="10" rx="1.5" fill="#0F2238"/><circle cx="17" cy="25.5" r="1.8" fill="#0F2238"/></svg>';
-        new maplibregl.Marker({ element: el, anchor: 'bottom' }).setLngLat([pt[1], pt[0]]).addTo(carte3d);
-        plus(function () { el.classList.add('pose'); }, 250 + i * 420);
-      });
-    });
-  }
   function allumerParcelles() {
     carte3d.addSource('client', { type: 'geojson', data: parcellesClient() });
     autresPret.then(function (g) { if (!fini && g.features.length) carte3d.getSource('client').setData({ type: 'FeatureCollection', features: parcellesClient().features.concat(g.features) }); });
