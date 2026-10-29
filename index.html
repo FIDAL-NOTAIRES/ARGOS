@@ -211,7 +211,7 @@ body.visite .visite-ctl{display:block}
 .bloc{background:#fff;border:1px solid var(--lagon-trait);border-radius:8px;padding:11px 12px;margin-top:10px}
 .bloc .titre-bloc{font-size:13px;color:var(--nuit)}
 .bloc .titre-bloc .chev{color:var(--canard)}
-.theme{margin-top:12px}
+.theme{margin-top:6px}
 .theme:first-child{margin-top:4px}
 .theme h4{text-transform:none;letter-spacing:0;font-size:12px;color:var(--canard-fonce)}
 .doc{border-bottom-color:#EDF2F3;border-radius:4px}
@@ -260,6 +260,21 @@ body:not(.accueil) .accueil-tete{display:none}
 .signal{display:inline-block;width:8px;height:8px;border-radius:50%;margin-left:7px;vertical-align:1px}
 .signal.proche{background:var(--orange)}
 .signal.echue{background:var(--carmin);box-shadow:0 0 0 2px rgba(160,16,64,.2)}
+.docs-plier{margin:2px 0 4px auto}
+.contenu-bloc .docs-plier{display:flex}
+.titre-theme{display:flex;align-items:center;gap:5px;width:100%;background:none;border:0;padding:3px 0;font-size:12.5px;font-weight:600;color:var(--canard-fonce);text-align:left}
+.titre-theme .chev{width:13px;height:13px;flex:none;color:var(--canard);transition:transform .18s ease}
+.titre-theme[aria-expanded="true"] .chev{transform:rotate(90deg)}
+.titre-theme:hover{color:var(--carmin)}
+.titre-theme:focus-visible{outline:2px solid var(--canard);outline-offset:2px}
+.arbre{list-style:none;margin:0 0 2px 6px;padding:0}
+.arbre li{position:relative;padding-left:17px}
+.arbre li::before{content:"";position:absolute;left:0;top:0;bottom:0;border-left:1.5px solid #86B6BA}
+.arbre li:last-child::before{bottom:50%}
+.arbre li::after{content:"";position:absolute;left:0;top:50%;width:12px;border-top:1.5px solid #86B6BA}
+.arbre .doc{padding:7px 0;border-bottom:0}
+.arbre li.sans-doc{font-size:12px;color:#6A7785;font-style:italic;padding-top:6px;padding-bottom:6px}
+.bloc .titre-bloc .signal{margin-left:8px;align-self:center}
 .retour-liste{display:flex;flex:none;align-items:center;justify-content:center;gap:8px;margin:10px 12px 4px;width:calc(100% - 24px);height:38px;border:0;border-radius:8px;background:var(--nuit);color:#fff;font-size:13px;box-shadow:0 1px 3px rgba(15,34,56,.25)}
 .retour-liste svg{width:16px;height:16px;color:var(--cyan)}
 .retour-liste:hover{background:#1A3352}
@@ -412,7 +427,7 @@ body.charge-cartes .carte-zone,body.charge-cartes .incrustations{opacity:0}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/4.7.1/maplibre-gl.min.js"></script>
 <script>
-/* ===================== ARGOS · maquette v0.45 · clients et documents fictifs, parcelles réelles lues au cadastre ===================== */
+/* ===================== ARGOS · maquette v0.46 · clients et documents fictifs, parcelles réelles lues au cadastre ===================== */
 var MISE_A_JOUR = 'octobre 2026';
 
 var NOTAIRE = {
@@ -475,6 +490,10 @@ function alerteSite(s) {
 function signalRue(s) {
   var a = alerteSite(s);
   return a ? '<i class="signal ' + a + '" title="' + (a === 'echue' ? 'Échéance dépassée' : 'Échéance dans moins de six mois') + '"></i>' : '';
+}
+function signalTitre(s) {
+  var a = alerteSite(s);
+  return a ? '<i class="signal ' + a + '" title="' + (a === 'echue' ? 'Une échéance est dépassée' : 'Une échéance approche (moins de six mois)') + '"></i>' : '';
 }
 function codeSite(s) { return 'ARG-' + ('00' + (s.id + 1)).slice(-3); }
 
@@ -934,7 +953,7 @@ function afficherFiche(s) {
       '<div class="ligne"><span>Zonage d’urbanisme</span><span>' + (s.zonage || '…') + '</span></div>' +
       '<div class="ligne"><span>Région</span><span>' + s.region + '</span></div>' +
     '</div></div>' +
-    '<div class="bloc">' + titreBloc('echeances', 'Échéances à surveiller') + (etatBlocs.echeances ? '<div class="contenu-bloc">' : '<div class="contenu-bloc" hidden>') +
+    '<div class="bloc">' + titreBloc('echeances', 'Échéances à surveiller' + signalTitre(s)) + (etatBlocs.echeances ? '<div class="contenu-bloc">' : '<div class="contenu-bloc" hidden>') +
       echeances(s).map(function (e) {
         return '<div class="echeance ' + e.etat + '"><span class="lib">' + e.libelle + '</span>' +
           '<span class="date"><b>' + e.date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) + '</b>' +
@@ -943,12 +962,20 @@ function afficherFiche(s) {
       '<div class="note-maquette">Maquette : dates fictives.</div>' +
     '</div></div>' +
     '<div class="bloc">' + titreBloc('docs', 'Documents') + (etatBlocs.docs ? '<div class="contenu-bloc">' : '<div class="contenu-bloc" hidden>') +
+      boutonDocsPlier() +
       THEMES.map(function (t) {
-        if (t.plan) return '<div class="theme"><h4>' + t.titre + '</h4><button type="button" class="doc" data-doc>' + IC_PLAN + 'Plan cadastral colorisé<span class="genere">généré</span>' + IC_DL + '</button></div>';
-        /* maquette : certaines thématiques sans document, pour montrer le message */
-        var vide = !t.docs.length || (t.titre === 'Exploitation' && s.id % 3 === 2);
-        return '<div class="theme"><h4>' + t.titre + '</h4>' + (vide ? '<div class="sans-doc">Aucun document à ce stade.</div>' :
-          t.docs.map(function (d) { return '<button type="button" class="doc" data-doc>' + IC_DOC + d + IC_DL + '</button>'; }).join('')) + '</div>';
+        /* v0.46 : arborescence — la catégorie, repliable, puis ses documents reliés par des traits ; plus d'icône de document */
+        var ouvert = etatThemes[t.titre] !== false;
+        var lignes;
+        if (t.plan) lignes = '<li><button type="button" class="doc" data-doc>Plan cadastral colorisé<span class="genere">généré</span>' + IC_DL + '</button></li>';
+        else {
+          /* maquette : certaines thématiques sans document, pour montrer le message */
+          var vide = !t.docs.length || (t.titre === 'Exploitation' && s.id % 3 === 2);
+          lignes = vide ? '<li class="sans-doc">Aucun document à ce stade</li>'
+            : t.docs.map(function (d) { return '<li><button type="button" class="doc" data-doc>' + d + IC_DL + '</button></li>'; }).join('');
+        }
+        return '<div class="theme"><button type="button" class="titre-theme" data-tt="' + t.titre + '" aria-expanded="' + ouvert + '">' + CHEV + t.titre + '</button>' +
+          '<ul class="arbre"' + (ouvert ? '' : ' hidden') + '>' + lignes + '</ul></div>';
       }).join('') +
     '</div></div>' +
     '<div class="bloc">' + titreBloc('assist', 'Une question ou un besoin d’assistance sur ce site ?') + (etatBlocs.assist ? '<div class="contenu-bloc">' : '<div class="contenu-bloc" hidden>') +
@@ -958,6 +985,13 @@ function afficherFiche(s) {
 }
 /* Blocs repliables de la fiche : caractéristiques repliées par défaut, documents dépliés ; le choix est gardé d'un site à l'autre */
 var etatBlocs = { carac: false, echeances: false, docs: true, assist: false };
+/* catégories de documents : toutes dépliées par défaut ; le choix est gardé d'un site à l'autre */
+var etatThemes = {};
+function docsTousOuverts() { return THEMES.every(function (t) { return etatThemes[t.titre] !== false; }); }
+function boutonDocsPlier() {
+  var tout = docsTousOuverts();
+  return '<button type="button" class="tout-plier docs-plier" data-docs-plier aria-expanded="' + tout + '"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M7 9l5 5 5-5"/></svg><span>' + (tout ? 'Tout replier' : 'Tout déplier') + '</span></button>';
+}
 function titreBloc(cle, libelle) {
   return '<button type="button" class="titre-bloc" data-bloc="' + cle + '" aria-expanded="' + etatBlocs[cle] + '">' +
     '<svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 5l7 7-7 7"/></svg>' + libelle + '</button>';
@@ -982,6 +1016,20 @@ document.getElementById('fiche').addEventListener('click', function (e) {
     etatBlocs[cle] = !etatBlocs[cle];
     tb.setAttribute('aria-expanded', String(etatBlocs[cle]));
     tb.nextElementSibling.hidden = !etatBlocs[cle];
+    return;
+  }
+  var tt = e.target.closest('[data-tt]');
+  if (tt) {
+    var k = tt.getAttribute('data-tt'), o = tt.getAttribute('aria-expanded') !== 'true';
+    etatThemes[k] = o; tt.setAttribute('aria-expanded', String(o)); tt.nextElementSibling.hidden = !o;
+    var bp = document.querySelector('[data-docs-plier]'); if (bp) bp.outerHTML = boutonDocsPlier();
+    return;
+  }
+  if (e.target.closest('[data-docs-plier]')) {
+    var ouvrir = !docsTousOuverts();
+    THEMES.forEach(function (t) { etatThemes[t.titre] = ouvrir; });
+    document.querySelectorAll('#fiche [data-tt]').forEach(function (b) { b.setAttribute('aria-expanded', String(ouvrir)); b.nextElementSibling.hidden = !ouvrir; });
+    document.querySelector('[data-docs-plier]').outerHTML = boutonDocsPlier();
     return;
   }
   if (e.target.closest('[data-doc]')) { annoncer('Maquette : aucun document réel. Le téléchargement sécurisé viendra avec la version définitive.'); return; }
