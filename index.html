@@ -66,6 +66,9 @@ button{font:inherit;cursor:pointer}
 .bascule{position:absolute;left:6px;top:6px;z-index:500;display:flex;background:#fff;border:1px solid var(--trait);border-radius:6px;overflow:hidden}
 .bascule button{border:0;background:#fff;font-size:12px;padding:5px 9px;color:var(--doux)}
 .bascule button[aria-pressed="true"]{background:var(--nuit);color:#fff}
+.fond-gris{filter:grayscale(1) contrast(.85) brightness(1.12);opacity:.5}
+.leaflet-tooltip.etiq-zone{background:rgba(255,255,255,.88);border:0;box-shadow:none;color:#1B2430;font-weight:700;font-size:12px;padding:1px 5px;border-radius:3px}
+.leaflet-tooltip.etiq-zone::before{display:none}
 .legende{position:absolute;right:6px;bottom:8px;z-index:500;background:rgba(255,255,255,.92);border-radius:4px;padding:3px 6px;font-size:11px;display:flex;gap:7px}
 .legende i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:3px;vertical-align:-1px}
 .cadenas{position:absolute;right:6px;top:6px;z-index:500;width:30px;height:30px;border-radius:6px;border:1px solid var(--trait);background:#fff;display:grid;place-items:center;color:var(--canard)}
@@ -73,6 +76,23 @@ button{font:inherit;cursor:pointer}
 .cadenas.ferme{color:var(--carmin);border-color:var(--carmin)}
 .aide-ins{font-size:11px;color:var(--doux);line-height:1.4}
 .fiche{background:var(--blanc);overflow-y:auto;padding:18px 18px 14px;display:flex;flex-direction:column}
+.theme{margin-top:10px}
+.theme h4{margin:0 0 2px;font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--doux)}
+.sans-doc{font-size:12px;color:var(--doux);font-style:italic;padding:4px 0 6px;border-bottom:1px solid #EEF0F3}
+.genere{font-size:10px;color:var(--canard);border:1px solid var(--canard);border-radius:3px;padding:0 4px;margin-left:6px}
+.assist{margin-top:auto;padding-top:20px}
+.assist>button{width:100%;height:36px;border:1px solid var(--trait);border-radius:6px;background:#fff;color:var(--nuit);font-size:13px;display:flex;align-items:center;justify-content:center;gap:8px}
+.assist>button:hover{background:var(--fond)}
+.assist .chev{width:14px;height:14px;transition:transform .2s}
+.assist>button[aria-expanded="true"] .chev{transform:rotate(90deg)}
+.onglets{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;overflow:hidden;max-height:0;opacity:0;transition:max-height .35s ease,opacity .35s ease}
+.onglets.ouvert{max-height:80px;opacity:1}
+.onglets button{flex:1 1 auto;border:1px solid var(--canard);background:#fff;color:var(--canard);border-radius:16px;padding:4px 10px;font-size:12px}
+.onglets button[aria-pressed="true"]{background:var(--canard);color:#fff}
+.carte-contact{margin-top:10px;font-size:13px;border-left:2px solid var(--canard);padding:4px 0 4px 10px;line-height:1.45}
+.carte-contact strong{display:block;color:var(--nuit)}
+.carte-contact a{color:var(--canard)}
+.code-site{font-size:11px;color:var(--doux)}
 .pied{margin-top:auto;padding-top:24px;font-size:12px;text-align:right}
 .pied a{color:var(--doux);text-decoration:none;border-bottom:1px dotted var(--doux)}
 .pied a:hover{color:var(--canard);border-bottom-color:var(--canard)}
@@ -194,10 +214,7 @@ body.visite .visite-ctl{display:block}
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="12" rx="1"/><path d="M12 16v4M8 20h8"/></svg>
     <span class="txt">Mode visite</span>
   </button>
-  <button class="btn-tete" id="btnContact" type="button">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16v11H8l-4 4z"/></svg>
-    <span class="txt">Nous contacter</span>
-  </button>
+
 </header>
 
 <main class="corps">
@@ -261,7 +278,7 @@ body.visite .visite-ctl{display:block}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/4.7.1/maplibre-gl.min.js"></script>
 <script>
-/* ===================== ARGOS · maquette v0.11 · clients et documents fictifs, parcelles réelles lues au cadastre ===================== */
+/* ===================== ARGOS · maquette v0.14 · clients et documents fictifs, parcelles réelles lues au cadastre ===================== */
 var MISE_A_JOUR = 'octobre 2026';
 
 var NOTAIRE = {
@@ -277,6 +294,25 @@ var AVOCATS = {
   'Île-de-France': { nom: 'Avocat FIDAL (exemple)', bureau: 'Bureau de Paris La Défense' },
   'Bretagne': { nom: 'Avocat FIDAL (exemple)', bureau: 'Bureau de Rennes' }
 };
+
+/* Assistance sur un site : dans cet ordre (urbanisme écarté). Avocats chargés par l'administrateur (fictifs ici) */
+var DOMAINES = [
+  { cle: 'notaire', titre: 'Notaire' },
+  { cle: 'fiscalite', titre: 'Fiscalité', avocat: 'Avocat FIDAL fiscaliste (exemple)' },
+  { cle: 'environnement', titre: 'Environnement', avocat: 'Avocat FIDAL en droit de l’environnement (exemple)' },
+  { cle: 'baux', titre: 'Baux commerciaux', avocat: 'Avocat FIDAL en baux commerciaux (exemple)' }
+];
+/* Thématiques documentaires : même ordre que dans l'administration */
+var THEMES = [
+  { titre: 'Titre', docs: ['Titre de propriété'] },
+  { titre: 'Exploitation', docs: ['Bail en cours'] },
+  { titre: 'Fiscalité', docs: ['Avis de taxe foncière'] },
+  { titre: 'Note de désignation', docs: ['Désignation du bien selon le titre'] },
+  { titre: 'Urbanisme / travaux', docs: ['Autorisations d’urbanisme'] },
+  { titre: 'Environnement', docs: [] },
+  { titre: 'Diagnostics', docs: ['Diagnostics techniques'] }
+];
+function codeSite(s) { return 'ARG-' + ('00' + (s.id + 1)).slice(-3); }
 
 /* Sites fictifs : adresses, parcelles et surfaces inventées */
 var SITES = [
@@ -323,11 +359,12 @@ var zonesUrba = L.geoJSON(null, {
   style: function (f) {
     var t = String((f.properties || {}).typezone || '').toUpperCase();
     var c = t.indexOf('AU') === 0 ? '#F2A33A' : t.charAt(0) === 'U' ? '#E64A4A' : t.charAt(0) === 'A' ? '#F2E35C' : t.charAt(0) === 'N' ? '#56B05A' : '#9AA3AD';
-    return { color: c, weight: 1, fillColor: c, fillOpacity: 0.38 };
+    return { color: c, weight: 2, opacity: 0.95, fillColor: c, fillOpacity: 0.55 };
   },
-  onEachFeature: function (f, l) { var p = f.properties || {}; l.bindTooltip((p.libelle || p.typezone || '') + (p.libelong ? ' · ' + p.libelong : ''), { sticky: true, className: 'adresse' }); }
+  onEachFeature: function (f, l) { var p = f.properties || {}; l.bindTooltip(p.libelle || p.typezone || '', { permanent: true, direction: 'center', className: 'etiq-zone' }); }
 });
-var fondUrba = L.layerGroup([couche('GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2', 'image/png'), zonesUrba]);
+var planGris = couche('GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2', 'image/png'); planGris.options.className = 'fond-gris';
+var fondUrba = L.layerGroup([planGris, zonesUrba]);
 var cleZones = '', minuteurZones;
 function chargerZones() {
   if (!window.fetch || !cadastre.hasLayer(fondUrba) || cadastre.getZoom() < 14) return;
@@ -485,17 +522,27 @@ function afficherFiche(s) {
       '<div class="ligne"><span>Région</span><span>' + s.region + '</span></div>' +
     '</div>' +
     '<div class="bloc"><h3>Documents</h3>' +
-      '<button type="button" class="doc" data-doc>' + IC_DOC + 'Titre de propriété' + IC_DL + '</button>' +
-      '<button type="button" class="doc" data-doc>' + IC_PLAN + 'Plan cadastral colorisé' + IC_DL + '</button>' +
-      '<button type="button" class="doc" data-doc>' + IC_DOC + 'Bail en cours' + IC_DL + '</button>' +
-      '<button type="button" class="doc" data-doc>' + IC_DOC + 'Diagnostics techniques' + IC_DL + '</button>' +
-      '<button type="button" class="doc" data-doc>' + IC_DOC + 'Avis de taxe foncière' + IC_DL + '</button>' +
+      THEMES.map(function (t, k) {
+        /* maquette : certaines thématiques sans document, pour montrer le message */
+        var vide = !t.docs.length || (k === 4 && s.id % 2 === 1) || (k === 1 && s.id % 3 === 2);
+        return '<div class="theme"><h4>' + t.titre + '</h4>' + (vide ? '<div class="sans-doc">Aucun document à ce stade.</div>' :
+          t.docs.map(function (d) { return '<button type="button" class="doc" data-doc>' + IC_DOC + d + IC_DL + '</button>'; }).join(''));
+      }).join('') +
+      '<div class="theme"><h4>Plan du site</h4><button type="button" class="doc" data-doc>' + IC_PLAN + 'Plan cadastral colorisé<span class="genere">généré</span>' + IC_DL + '</button></div>' +
     '</div>' +
-    '<div class="bloc"><h3>Vos interlocuteurs</h3>' +
-      '<div class="interloc"><strong>' + NOTAIRE.nom + '</strong>' + NOTAIRE.role + '</div>' +
-      '<div class="interloc"><strong>' + a.nom + '</strong>' + a.bureau + ', pour les sites de la région</div>' +
-    '</div>' +
-    '<p class="pied"><a href="mailto:' + NOTAIRE.courriel + '?subject=' + encodeURIComponent('ARGOS · ' + s.commune + ', ' + s.rue) + '">Écrire à votre notaire</a></p>';
+    '<div class="assist">' +
+      '<button type="button" id="btnAssist" aria-expanded="false"><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 5l7 7-7 7"/></svg>Une question sur ce site ?</button>' +
+      '<div class="onglets" id="onglets">' + DOMAINES.map(function (d) { return '<button type="button" data-domaine="' + d.cle + '" aria-pressed="false">' + d.titre + '</button>'; }).join('') + '</div>' +
+      '<div id="carteContact"></div>' +
+    '</div>';
+}
+function montrerContact(s, cle) {
+  var d = DOMAINES.filter(function (x) { return x.cle === cle; })[0];
+  var objet = encodeURIComponent('ARGOS · ' + codeSite(s) + ' · ' + s.commune + ', ' + s.rue + ' · ' + d.titre);
+  var html = d.cle === 'notaire'
+    ? '<strong>' + NOTAIRE.nom + '</strong>' + NOTAIRE.role + '<br><a href="mailto:' + NOTAIRE.courriel + '?subject=' + objet + '">Écrire au sujet de ce site</a>'
+    : '<strong>' + d.avocat + '</strong>' + AVOCATS[s.region].bureau + '<br><a href="#" data-avocat>Écrire au sujet de ce site</a>';
+  document.getElementById('carteContact').innerHTML = '<div class="carte-contact">' + html + '<div class="code-site">Référence du site : ' + codeSite(s) + '</div></div>';
 }
 document.getElementById('fiche').addEventListener('click', function (e) {
   var n = e.target.closest('[data-nav]');
@@ -505,6 +552,11 @@ document.getElementById('fiche').addEventListener('click', function (e) {
     return;
   }
   if (e.target.closest('[data-doc]')) { annoncer('Maquette : aucun document réel. Le téléchargement sécurisé viendra avec la version définitive.'); return; }
+  var b = e.target.closest('#btnAssist');
+  if (b) { var o = b.getAttribute('aria-expanded') !== 'true'; b.setAttribute('aria-expanded', String(o)); document.getElementById('onglets').classList.toggle('ouvert', o); if (!o) document.getElementById('carteContact').innerHTML = ''; return; }
+  var t = e.target.closest('[data-domaine]');
+  if (t) { document.querySelectorAll('[data-domaine]').forEach(function (x) { x.setAttribute('aria-pressed', String(x === t)); }); montrerContact(SITES[courant], t.getAttribute('data-domaine')); return; }
+  if (e.target.closest('[data-avocat]')) { e.preventDefault(); annoncer('Maquette : les coordonnées de l’avocat seront chargées dans l’administration.'); }
 });
 
 /* ---------- Sélection d’un site ---------- */
@@ -599,7 +651,6 @@ function ouvrirContact() {
   voile.querySelector('[data-ferme]').focus();
 }
 function fermerContact() { voile.classList.remove('ouvert'); }
-document.getElementById('btnContact').addEventListener('click', ouvrirContact);
 voile.addEventListener('click', function (e) { if (e.target === voile || e.target.hasAttribute('data-ferme')) fermerContact(); });
 
 /* ---------- Message bref ---------- */
@@ -726,12 +777,14 @@ function lireParcelle(s) {
       s.lat = c.lat; s.lng = c.lng;
     })
     .catch(function () { if (!s.parcelles) { s.parcelles = ['non lue']; s.surface = '—'; } })
-    .then(function () { lireZonage(s); if (courant === s.id) afficherFiche(s); });
+    .then(function () { if (courant === s.id) afficherFiche(s); return lireZonage(s); });
 }
-function lireZonage(s) {
-  if (!window.fetch) return;
+function attendre(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+function lireZonage(s, essai) {
+  if (!window.fetch) return Promise.resolve();
+  essai = essai || 1;
   var geom = encodeURIComponent(JSON.stringify({ type: 'Point', coordinates: [s.lng, s.lat] }));
-  fetch('https://apicarto.ign.fr/api/gpu/zone-urba?geom=' + geom)
+  return fetch('https://apicarto.ign.fr/api/gpu/zone-urba?geom=' + geom)
     .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
     .then(function (g) {
       var f = g.features && g.features[0];
@@ -739,7 +792,11 @@ function lireZonage(s) {
       var p = f.properties || {};
       s.zonage = (p.libelle || p.typezone || '?') + (p.libelong ? ' · ' + (p.libelong.length > 60 ? p.libelong.slice(0, 58) + '…' : p.libelong) : '');
     })
-    .catch(function () { s.zonage = 'non lu'; })
+    .catch(function () {
+      /* le service limite le nombre d'appels : on retente deux fois, en espaçant */
+      if (essai < 3) return attendre(1200 * essai).then(function () { return lireZonage(s, essai + 1); });
+      s.zonage = 'non lu';
+    })
     .then(function () { if (courant === s.id) afficherFiche(s); });
 }
 
@@ -748,7 +805,11 @@ construireListe();
 carte.fitBounds(L.latLngBounds(SITES.map(function (s) { return [s.lat, s.lng]; })).pad(0.15));
 synchroniser();
 choisir(visibles[0].id, false);
-SITES.forEach(lireParcelle);
+/* Lecture des sites l'un après l'autre (le service public limite les appels simultanés), le site affiché en premier */
+(function () {
+  var file = SITES.slice().sort(function (a, b) { return (b.id === courant) - (a.id === courant); });
+  file.reduce(function (p, s) { return p.then(function () { return lireParcelle(s); }).then(function () { return attendre(150); }); }, Promise.resolve());
+})();
 </script>
 </body>
 </html>
