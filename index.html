@@ -285,6 +285,8 @@ body:not(.accueil) .accueil-tete{display:none}
 .bloc .titre-bloc .signal{margin-left:8px;align-self:center}
 .ligne span:last-child{text-align:right}
 .ligne.date span:last-child{white-space:nowrap}
+.ligne.triennale span small{display:block;font-size:11px;color:var(--canard-fonce);white-space:normal;font-weight:400}
+.ligne.triennale span:last-child{font-weight:600}
 .indice{margin-top:8px;padding:7px 10px;border-radius:6px;background:var(--lagon);font-size:12.5px}
 .indice .lib{display:block;color:#3D4B59}
 .indice .val{display:inline-block;margin-top:2px;font-size:16px;font-weight:600;color:var(--nuit);margin-right:8px}
@@ -443,7 +445,7 @@ body.charge-cartes .carte-zone,body.charge-cartes .incrustations{opacity:0}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/4.7.1/maplibre-gl.min.js"></script>
 <script>
-/* ===================== ARGOS · maquette v0.49 · clients et documents fictifs, parcelles réelles lues au cadastre ===================== */
+/* ===================== ARGOS · maquette v0.50 · clients et documents fictifs, parcelles réelles lues au cadastre ===================== */
 var MISE_A_JOUR = 'octobre 2026';
 
 var NOTAIRE = {
@@ -550,6 +552,33 @@ function bail(s) {
   var signature = new Date(entree); signature.setDate(signature.getDate() - (20 + (i * 13) % 40));
   return { signature: signature, entree: entree, expiration: expiration, duree: '9 ans', triennale: i % 4 !== 3, trimRef: trimestreParuA(signature) };
 }
+/* v0.50 : prochaine échéance triennale, calculée à la date du jour de la consultation
+   (fins de périodes triennales : veille du 3e, 6e anniversaire de l'entrée en vigueur ; le congé du preneur se donne six mois avant) */
+function prochaineTriennale(b, auj) {
+  for (var k = 1; k <= 3; k++) {  /* la 3e échéance triennale coïncide avec la fin du bail */
+    var d = new Date(b.entree); d.setFullYear(d.getFullYear() + 3 * k); d.setDate(d.getDate() - 1);
+    if (d >= auj) return d;
+  }
+  return null;
+}
+function ligneTriennale(b) {
+  var auj = new Date(); auj.setHours(0, 0, 0, 0);
+  var d = prochaineTriennale(b, auj);
+  var txt, petit;
+  if (!d) {
+    txt = 'aucune';
+    petit = 'bail arrivé à expiration le ' + dateLongue(b.expiration) + ' (prolongation tacite à vérifier)';
+  } else {
+    var j = Math.round((d - auj) / 86400000);
+    var conge = new Date(d); conge.setMonth(conge.getMonth() - 6);
+    txt = dateLongue(d);
+    var fin = d.getTime() === b.expiration.getTime();
+    petit = (fin ? 'fin du bail · ' : '') + 'dans ' + j + ' jour' + (j > 1 ? 's' : '') + ' · ' + (b.triennale
+      ? (conge >= auj ? 'congé à délivrer au plus tard le ' + dateLongue(conge) : 'délai de congé de six mois dépassé pour cette échéance')
+      : 'faculté de résiliation exclue par le bail');
+  }
+  return '<div class="ligne date triennale"><span>Prochaine échéance triennale<small>à la date du ' + dateLongue(auj) + '</small></span><span>' + txt + '<small>' + petit + '</small></span></div>';
+}
 function blocBail(s) {
   var b = bail(s);
   if (!b) return '';
@@ -562,6 +591,7 @@ function blocBail(s) {
     ligne('Date d’expiration', dateLongue(b.expiration), true) +
     ligne('Durée du bail', b.duree) +
     ligne('Faculté de résiliation triennale', b.triennale ? 'Oui' : 'Non') +
+    ligneTriennale(b) +
     '<div class="indice"><span class="lib">Indice de référence (ILC) à la date de signature</span>' +
       '<span class="val">' + (ref ? ref.toLocaleString('fr-FR', { minimumFractionDigits: 2 }) : 'valeur non disponible') + '</span>' +
       '<small>' + (b.trimRef ? libTrimestre(b.trimRef) : '') + '</small></div>' +
