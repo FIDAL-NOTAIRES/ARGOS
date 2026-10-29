@@ -233,6 +233,10 @@ body.visite .visite-ctl{display:block}
 .legende{max-width:calc(100% - 165px)}
 .bloc .titre-bloc{align-items:flex-start;line-height:1.35}
 .bloc .titre-bloc .chev{flex:none;margin-top:2px}
+.leaflet-tile-pane{transition:filter .5s ease,opacity .5s ease}
+#carte.sobre{background:#DCE6EE}
+#carte.sobre .leaflet-tile-pane{filter:grayscale(1) contrast(.78) brightness(1.1);opacity:.78}
+.pastille{box-shadow:0 0 0 2px rgba(160,16,64,.3),0 2px 10px rgba(15,34,56,.35)}
 @media (prefers-reduced-motion: reduce){#intro{display:none}}
 @media (max-width:1100px){
   body{overflow:auto}
@@ -349,7 +353,7 @@ body.visite .visite-ctl{display:block}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/4.7.1/maplibre-gl.min.js"></script>
 <script>
-/* ===================== ARGOS · maquette v0.33 · clients et documents fictifs, parcelles réelles lues au cadastre ===================== */
+/* ===================== ARGOS · maquette v0.34 · clients et documents fictifs, parcelles réelles lues au cadastre ===================== */
 var MISE_A_JOUR = 'octobre 2026';
 
 var NOTAIRE = {
@@ -414,7 +418,8 @@ function couche(layer, format, style) {
   );
 }
 
-var carte = L.map('carte', { zoomControl: true, preferCanvas: false }).setView([49.3, 1.5], 7);
+/* zoomSnap 0,25 : le cadrage d'ensemble serre au plus près le patrimoine, au lieu de sauter d'un cran entier */
+var carte = L.map('carte', { zoomControl: true, preferCanvas: false, zoomSnap: 0.25 }).setView([49.3, 1.5], 7);
 couche('GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2', 'image/png').addTo(carte);
 carte.attributionControl.setPrefix(false);
 
@@ -638,6 +643,10 @@ function dessinerPastilles() {
   }
 }
 carte.on('zoomend', dessinerPastilles);
+/* Vue d'ensemble sobre (v0.34) : en vue large, le plan passe en gris clair teinté de brume pour que seules les pastilles
+   carmin ressortent ; dès qu'on descend au niveau d'une ville, le plan reprend ses couleurs */
+function ajusterSobriete() { carte.getContainer().classList.toggle('sobre', carte.getZoom() < ZOOM_SITES); }
+carte.on('zoomend', ajusterSobriete);
 
 /* ---------- Synchronisation des trois vues, avec cadenas ---------- */
 var fige = { aerienne: false, cadastre: false };
@@ -1176,6 +1185,7 @@ cadrerEnsemble(false);
 synchroniser();
 afficherAccueil();
 dessinerPastilles();
+ajusterSobriete();
 /* Lecture des sites l'un après l'autre (le service public limite les appels simultanés), le site affiché en premier */
 (function () {
   var file = SITES.slice().sort(function (a, b) { return (b.id === courant) - (a.id === courant); });
