@@ -91,12 +91,6 @@ button{font:inherit;cursor:pointer}
 .contenu-bloc{margin-top:6px}
 .theme{margin-top:10px}
 .theme h4{margin:0 0 2px;font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--doux)}
-.accueil-fiche{padding:6px 2px}
-.accueil-fiche .lieu{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--carmin);margin:0 0 4px}
-.accueil-fiche p{font-size:13px;line-height:1.55;color:#4A5868;margin:10px 0 0}
-.accueil-fiche .trait{width:34px;height:2px;background:var(--cyan);margin:12px 0 4px}
-.accueil-fiche button{margin-top:16px;width:100%;height:36px;border:1px solid var(--trait);border-radius:6px;background:#fff;color:var(--nuit);font-size:13px}
-.accueil-fiche button:hover{border-color:var(--carmin);color:var(--carmin)}
 .pastille{width:16px;height:16px;border-radius:50%;background:#A01040;border:2px solid #fff;box-shadow:0 0 0 2px rgba(160,16,64,.35),0 0 12px rgba(160,16,64,.7);cursor:pointer;transition:transform .15s}
 .pastille:hover{transform:scale(1.25)}
 .pastille.groupe{width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:13px;color:#fff}
@@ -189,19 +183,21 @@ body.visite .visite-ctl{display:block}
    Liste des sites : bleu brume, dans la famille du bleu nuit du bandeau.
    Fiche : canard très pâle ; ses blocs deviennent des feuillets blancs posés dessus.
    Le site sélectionné prend la teinte de la fiche, comme un onglet qui s'ouvre sur elle. */
-:root{ --brume:#EAF0F5; --brume-2:#DDE6EE; --brume-trait:#D3DDE7; --lagon:#EFF6F6; --lagon-trait:#D5E6E7; --canard-fonce:#245F65; }
+/* v0.35 : teintes plus soutenues, à la demande de JFD */
+:root{ --brume:#D9E4EE; --brume-2:#C9D7E4; --brume-trait:#BFCFDD; --lagon:#D8EBEC; --lagon-trait:#BCDADC; --canard-fonce:#1F565C; }
 .tete{border-bottom:1px solid rgba(109,213,220,.35)}
 .liste{background:var(--brume);border-right:1px solid var(--brume-trait)}
 .outils{border-bottom:1px solid var(--brume-trait)}
 .outils input,.outils select{border-color:var(--brume-trait)}
 .vues{border-color:var(--brume-trait);background:#fff}
-.pli:hover,.rue:hover{background:rgba(255,255,255,.6)}
+.pli:hover,.rue:hover{background:rgba(255,255,255,.45)}
 .pli.reg{border-top:1px solid var(--brume-trait);color:var(--canard-fonce)}
-.pli small{color:#6A7785}
+.pli small{color:#4F5D6B}
 .rue{color:#2A3644}
 .rue.actif{background:var(--lagon);color:var(--carmin);box-shadow:inset 0 1px 0 var(--lagon-trait),inset 0 -1px 0 var(--lagon-trait)}
 .resume{background:var(--brume-2);border-top:1px solid var(--brume-trait)}
 .resume strong{color:var(--nuit);font-size:22px}
+.resume div{color:#46525F}
 .defile{scrollbar-width:thin;scrollbar-color:#B9C6D3 transparent}
 
 .fiche{background:var(--lagon);border-right:1px solid var(--lagon-trait);padding:20px 16px 14px;scrollbar-width:thin;scrollbar-color:#B5CFD1 transparent}
@@ -226,17 +222,25 @@ body.visite .visite-ctl{display:block}
 .ligne:last-child{border-bottom:0}
 .carte-contact{border-left-color:var(--cyan)}
 .carte-contact .domaine{text-transform:none;letter-spacing:0;font-size:12px;font-weight:600}
-.accueil-fiche .lieu{text-transform:none;letter-spacing:0;font-size:13px;font-weight:600}
-.accueil-fiche h2{font-size:26px}
-.accueil-fiche button{border-color:var(--lagon-trait)}
 .pied a{color:#4E5D6B}
 .legende{max-width:calc(100% - 165px)}
 .bloc .titre-bloc{align-items:flex-start;line-height:1.35}
 .bloc .titre-bloc .chev{flex:none;margin-top:2px}
 .leaflet-tile-pane{transition:filter .5s ease,opacity .5s ease}
-#carte.sobre{background:#DCE6EE}
-#carte.sobre .leaflet-tile-pane{filter:grayscale(1) contrast(.78) brightness(1.1);opacity:.78}
+/* v0.35 : vue d'ensemble adoucie mais plus en couleurs (mer bleutée, campagne légèrement verte) */
+#carte.sobre{background:#E4ECF2}
+#carte.sobre .leaflet-tile-pane{filter:saturate(.5) contrast(.88) brightness(1.06)}
 .pastille{box-shadow:0 0 0 2px rgba(160,16,64,.3),0 2px 10px rgba(15,34,56,.35)}
+body.accueil .corps{grid-template-columns:240px minmax(0,1fr) 320px}
+body.accueil .fiche{display:none}
+.accueil-liste{margin:14px 12px 4px;padding:14px 14px 12px;background:#fff;border:1px solid var(--brume-trait);border-radius:8px}
+.accueil-liste h2{margin:0;font-weight:400;font-size:20px;color:var(--nuit)}
+.accueil-liste .trait{width:30px;height:2px;background:var(--cyan);margin:9px 0 2px}
+.accueil-liste p{margin:8px 0 0;font-size:12.5px;line-height:1.5;color:#46525F}
+.accueil-liste button{margin-top:12px;width:100%;height:32px;border:1px solid var(--brume-trait);border-radius:6px;background:var(--brume);color:var(--nuit);font-size:13px}
+.accueil-liste button:hover{border-color:var(--carmin);color:var(--carmin)}
+.retour{align-self:flex-start;background:none;border:0;padding:0;margin:0 0 10px;font-size:12px;color:var(--canard-fonce);border-bottom:1px dotted var(--canard)}
+.retour:hover{color:var(--carmin);border-bottom-color:var(--carmin)}
 @media (prefers-reduced-motion: reduce){#intro{display:none}}
 @media (max-width:1100px){
   body{overflow:auto}
@@ -353,7 +357,7 @@ body.visite .visite-ctl{display:block}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/4.7.1/maplibre-gl.min.js"></script>
 <script>
-/* ===================== ARGOS · maquette v0.34 · clients et documents fictifs, parcelles réelles lues au cadastre ===================== */
+/* ===================== ARGOS · maquette v0.36 · clients et documents fictifs, parcelles réelles lues au cadastre ===================== */
 var MISE_A_JOUR = 'octobre 2026';
 
 var NOTAIRE = {
@@ -697,6 +701,16 @@ var ouverts = {};
 var modeListe = 'region';
 function cpDe(com, liste) { return Array.from(new Set(liste.filter(function (s) { return s.commune === com; }).map(function (s) { return s.cp; }))).sort().join(', '); }
 function cleCom(s) { return s.region + '|' + s.commune; }
+/* v0.36 : l'invitation d'accueil se place dans la colonne de gauche, sous les régions ; la colonne fiche n'apparaît qu'au choix d'un site */
+function blocAccueil() {
+  if (courant !== null) return '';
+  return '<div class="accueil-liste">' +
+    '<h2>Votre patrimoine</h2>' +
+    '<div class="trait"></div>' +
+    '<p>Choisissez un site dans la liste ou sur la carte : sa fiche et ses documents s’ouvriront à côté.</p>' +
+    '<button type="button" data-ensemble>Voir l’ensemble des sites</button>' +
+  '</div>';
+}
 function construireListe() {
   var q = sansAccent(champ.value.trim()), r = selRegion.value;
   visibles = SITES.filter(function (s) {
@@ -714,7 +728,7 @@ function construireListe() {
       if (!oC) return;
       deCom.forEach(function (s) { html += '<button type="button" class="rue' + (courant === s.id ? ' actif' : '') + '" style="padding-left:38px" data-id="' + s.id + '">' + s.rue + '</button>'; });
     });
-    elListe.innerHTML = html;
+    elListe.innerHTML = html + blocAccueil();
     return;
   }
   Array.from(new Set(visibles.map(function (s) { return s.region; }))).forEach(function (reg) {
@@ -732,7 +746,7 @@ function construireListe() {
       });
     });
   });
-  elListe.innerHTML = html;
+  elListe.innerHTML = html + blocAccueil();
 }
 elListe.addEventListener('click', function (e) {
   var p = e.target.closest('.pli');
@@ -761,6 +775,7 @@ function afficherFiche(s) {
   var a = AVOCATS[s.region];
   var i = visibles.findIndex(function (x) { return x.id === s.id; });
   document.getElementById('fiche').innerHTML =
+    '<button type="button" class="retour" data-retour>Retour à l’ensemble des sites</button>' +
     '<h2>' + s.commune + '</h2>' +
     '<p class="adr">' + s.rue + ', ' + s.cp + ' ' + s.commune + '</p>' +
     '<div class="nav-site">' +
@@ -829,18 +844,13 @@ function cadrerEnsemble(anime) {
 function afficherAccueil() {
   courant = null;
   formes.carte.forEach(function (f) { f.setStyle(STYLE_NORMAL); });
-  document.getElementById('fiche').innerHTML =
-    '<div class="accueil-fiche">' +
-      '<p class="lieu">Bienvenue</p>' +
-      '<h2>Votre patrimoine</h2>' +
-      '<div class="trait"></div>' +
-      '<p>Choisissez un site dans la liste ou sur la carte : sa fiche, ses documents et ses vues s’afficheront ici.</p>' +
-      '<button type="button" id="voirTout">Voir l’ensemble des sites</button>' +
-    '</div>';
+  document.getElementById('fiche').innerHTML = '';
+  if (!document.body.classList.contains('accueil')) { document.body.classList.add('accueil'); setTimeout(function () { carte.invalidateSize(); }, 30); }
+  construireListe();
 }
-document.getElementById('fiche').addEventListener('click', function (e) {
-  if (!e.target.closest('#voirTout')) return;
-  cadrerEnsemble(true);
+document.addEventListener('click', function (e) {
+  if (e.target.closest('[data-ensemble]')) cadrerEnsemble(true);
+  if (e.target.closest('[data-retour]')) { afficherAccueil(); cadrerEnsemble(true); }
 });
 
 /* ---------- Sélection d’un site ---------- */
@@ -848,6 +858,7 @@ function choisir(id, centrer) {
   if (id === null || id === undefined) { afficherAccueil(); return; }
   courant = id;
   var s = SITES[id];
+  if (document.body.classList.contains('accueil')) { document.body.classList.remove('accueil'); carte.invalidateSize(); }
   ouverts[s.region] = true; ouverts[cleCom(s)] = true; ouverts['C|' + s.commune] = true;
   formes.carte.forEach(function (f, k) { f.setStyle(k === id ? STYLE_ACTIF : STYLE_NORMAL); });
   if (centrer) carte.flyTo([s.lat, s.lng], 17, { duration: 0.8 });
@@ -1180,10 +1191,10 @@ function lireZonage(s, essai) {
 }
 
 /* ---------- Démarrage ---------- */
-construireListe();
+afficherAccueil();
+carte.invalidateSize();
 cadrerEnsemble(false);
 synchroniser();
-afficherAccueil();
 dessinerPastilles();
 ajusterSobriete();
 /* Lecture des sites l'un après l'autre (le service public limite les appels simultanés), le site affiché en premier */
