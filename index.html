@@ -242,7 +242,7 @@ body.visite .visite-ctl{display:block}
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script>
-/* ===================== ARGOS · maquette v0.3 · clients et documents fictifs, parcelles réelles lues au cadastre ===================== */
+/* ===================== ARGOS · maquette v0.4 · clients et documents fictifs, parcelles réelles lues au cadastre ===================== */
 var MISE_A_JOUR = 'octobre 2026';
 
 var NOTAIRE = {
@@ -271,7 +271,7 @@ var SITES = [
   { commune: 'Le Havre', cp: '76600', region: 'Normandie', rue: 'Zone portuaire, route du Môle', lat: 49.4650, lng: 0.1650, nature: 'Plateforme logistique' },
   { commune: 'Mondeville', cp: '14120', region: 'Normandie', rue: 'Zone d’activité, rue des Halles', lat: 49.1755, lng: -0.3215, nature: 'Entrepôt' },
   { commune: 'Gennevilliers', cp: '92230', region: 'Île-de-France', rue: 'Port de Gennevilliers, route du Bassin', lat: 48.9350, lng: 2.2900, nature: 'Entrepôt' },
-  { commune: 'Rennes', cp: '35000', region: 'Bretagne', rue: 'Zone industrielle Sud-Est, rue de la Mine', lat: 48.0950, lng: -1.6200, nature: 'Atelier' },
+  { commune: 'Rennes', cp: '35000', region: 'Bretagne', rue: 'Zone industrielle Sud-Est, rue de la Mine', lat: 48.0968, lng: -1.6232, nature: 'Entrepôt' },
   { commune: 'Brest', cp: '29200', region: 'Bretagne', rue: 'Port de commerce, rue du Bassin', lat: 48.3835, lng: -4.4750, nature: 'Entrepôt' }
 ];
 SITES.forEach(function (s, i) { s.id = i; });
@@ -297,11 +297,31 @@ function petiteCarte(id, fond) {
 }
 var aerienne = petiteCarte('vueAerienne', couche('ORTHOIMAGERY.ORTHOPHOTOS', 'image/jpeg'));
 var fondCadastre = couche('CADASTRALPARCELS.PARCELLAIRE_EXPRESS', 'image/png', 'PCI vecteur');
-var fondUrba = L.layerGroup([
-  couche('GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2', 'image/png'),
-  L.tileLayer.wms('https://data.geopf.fr/wms-v/ows', { layers: 'zone_secteur', format: 'image/png', transparent: true, version: '1.3.0', opacity: 0.75, maxZoom: 19 })
-]);
+/* Zonage d'urbanisme : zones lues au Géoportail de l'urbanisme (API Carto) pour l'emprise affichée, coloriées selon leur type */
+var zonesUrba = L.geoJSON(null, {
+  style: function (f) {
+    var t = String((f.properties || {}).typezone || '').toUpperCase();
+    var c = t.indexOf('AU') === 0 ? '#F2A33A' : t.charAt(0) === 'U' ? '#E64A4A' : t.charAt(0) === 'A' ? '#F2E35C' : t.charAt(0) === 'N' ? '#56B05A' : '#9AA3AD';
+    return { color: c, weight: 1, fillColor: c, fillOpacity: 0.38 };
+  },
+  onEachFeature: function (f, l) { var p = f.properties || {}; l.bindTooltip((p.libelle || p.typezone || '') + (p.libelong ? ' · ' + p.libelong : ''), { sticky: true, className: 'adresse' }); }
+});
+var fondUrba = L.layerGroup([couche('GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2', 'image/png'), zonesUrba]);
+var cleZones = '', minuteurZones;
+function chargerZones() {
+  if (!window.fetch || !cadastre.hasLayer(fondUrba) || cadastre.getZoom() < 14) return;
+  var b = cadastre.getBounds().pad(0.3);
+  var cle = [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()].map(function (v) { return v.toFixed(3); }).join(',');
+  if (cle === cleZones) return;
+  cleZones = cle;
+  var poly = { type: 'Polygon', coordinates: [[[b.getWest(), b.getSouth()], [b.getEast(), b.getSouth()], [b.getEast(), b.getNorth()], [b.getWest(), b.getNorth()], [b.getWest(), b.getSouth()]]] };
+  fetch('https://apicarto.ign.fr/api/gpu/zone-urba?geom=' + encodeURIComponent(JSON.stringify(poly)))
+    .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+    .then(function (g) { if (cle !== cleZones) return; zonesUrba.clearLayers(); zonesUrba.addData(g); formes.cadastre.forEach(function (f) { f.bringToFront(); }); })
+    .catch(function () { cleZones = ''; });
+}
 var cadastre = petiteCarte('vueCadastre', fondUrba);
+cadastre.on('moveend', function () { clearTimeout(minuteurZones); minuteurZones = setTimeout(chargerZones, 400); });
 function changerTheme(t) {
   var urba = t === 'urba';
   cadastre.removeLayer(urba ? fondCadastre : fondUrba);
@@ -310,6 +330,7 @@ function changerTheme(t) {
   document.querySelectorAll('.bascule button').forEach(function (b) { b.setAttribute('aria-pressed', String(b.getAttribute('data-theme') === t)); });
   document.getElementById('nomTheme').textContent = urba ? 'Zonage d’urbanisme' : 'Cadastre';
   document.getElementById('legendeUrba').style.display = urba ? '' : 'none';
+  if (urba) { cleZones = ''; chargerZones(); }
 }
 document.querySelector('.bascule').addEventListener('click', function (e) {
   var b = e.target.closest('button'); if (b) changerTheme(b.getAttribute('data-theme'));
