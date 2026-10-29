@@ -287,6 +287,18 @@ body:not(.accueil) .accueil-tete{display:none}
 .ligne.date span:last-child{white-space:nowrap}
 .ligne.triennale span small{display:block;font-size:11px;color:var(--canard-fonce);white-space:normal;font-weight:400}
 .ligne.triennale span:last-child{font-weight:600}
+.sous-titre{margin:12px 0 2px;font-size:11.5px;font-weight:600;color:var(--canard-fonce);letter-spacing:.01em}
+.contenu-bloc>.sous-titre:first-child{margin-top:4px}
+.carte-bail{display:block;margin-top:8px;padding:9px 11px;border-radius:7px;background:var(--lagon);border-left:3px solid var(--canard)}
+.carte-bail span{display:block}
+.carte-bail .lib{font-size:12px;color:#3D4B59}
+.carte-bail .val{margin:1px 0 3px;font-size:17px;font-weight:600;color:var(--nuit);line-height:1.25}
+.carte-bail .detail{font-size:12px;line-height:1.45;color:#2F3D4B}
+.carte-bail .detail.fort{color:var(--canard-fonce);font-weight:600}
+.carte-bail .detail.alerte{color:var(--carmin);font-weight:600}
+.carte-bail .calcul{margin-top:5px;font-size:11px;color:#6A7785;font-style:italic}
+.carte-bail.indice-c{border-left-color:var(--cyan)}
+.carte-bail.dernier{background:#EEF3F8;border-left-color:var(--nuit)}
 .indice{margin-top:8px;padding:7px 10px;border-radius:6px;background:var(--lagon);font-size:12.5px}
 .indice .lib{display:block;color:#3D4B59}
 .indice .val{display:inline-block;margin-top:2px;font-size:16px;font-weight:600;color:var(--nuit);margin-right:8px}
@@ -445,7 +457,7 @@ body.charge-cartes .carte-zone,body.charge-cartes .incrustations{opacity:0}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/4.7.1/maplibre-gl.min.js"></script>
 <script>
-/* ===================== ARGOS · maquette v0.50 · clients et documents fictifs, parcelles réelles lues au cadastre ===================== */
+/* ===================== ARGOS · maquette v0.51 · clients et documents fictifs, parcelles réelles lues au cadastre ===================== */
 var MISE_A_JOUR = 'octobre 2026';
 
 var NOTAIRE = {
@@ -564,20 +576,23 @@ function prochaineTriennale(b, auj) {
 function ligneTriennale(b) {
   var auj = new Date(); auj.setHours(0, 0, 0, 0);
   var d = prochaineTriennale(b, auj);
-  var txt, petit;
+  /* v0.51 : présentée en carte, sur des lignes courtes et lisibles */
+  var html = '<div class="carte-bail triennale"><span class="lib">Prochaine échéance triennale</span>';
   if (!d) {
-    txt = 'aucune';
-    petit = 'bail arrivé à expiration le ' + dateLongue(b.expiration) + ' (prolongation tacite à vérifier)';
+    html += '<span class="val">Aucune</span>' +
+      '<span class="detail">Bail arrivé à expiration le ' + dateLongue(b.expiration) + '</span>' +
+      '<span class="detail alerte">Prolongation tacite à vérifier</span>';
   } else {
     var j = Math.round((d - auj) / 86400000);
     var conge = new Date(d); conge.setMonth(conge.getMonth() - 6);
-    txt = dateLongue(d);
     var fin = d.getTime() === b.expiration.getTime();
-    petit = (fin ? 'fin du bail · ' : '') + 'dans ' + j + ' jour' + (j > 1 ? 's' : '') + ' · ' + (b.triennale
-      ? (conge >= auj ? 'congé à délivrer au plus tard le ' + dateLongue(conge) : 'délai de congé de six mois dépassé pour cette échéance')
-      : 'faculté de résiliation exclue par le bail');
+    html += '<span class="val">' + dateLongue(d) + '</span>' +
+      '<span class="detail">Dans ' + j + ' jour' + (j > 1 ? 's' : '') + (fin ? ', à la fin du bail' : '') + '</span>';
+    if (!b.triennale) html += '<span class="detail">Faculté de résiliation exclue par le bail</span>';
+    else if (conge >= auj) html += '<span class="detail fort">Congé à délivrer au plus tard le ' + dateLongue(conge) + '</span>';
+    else html += '<span class="detail alerte">Délai de congé de six mois dépassé pour cette échéance</span>';
   }
-  return '<div class="ligne date triennale"><span>Prochaine échéance triennale<small>à la date du ' + dateLongue(auj) + '</small></span><span>' + txt + '<small>' + petit + '</small></span></div>';
+  return html + '<span class="calcul">Calculée au ' + dateLongue(auj) + '</span></div>';
 }
 function blocBail(s) {
   var b = bail(s);
@@ -586,19 +601,23 @@ function blocBail(s) {
   var der = ILC.valeurs[ILC.dernier];
   function ligne(l, v, d) { return '<div class="ligne' + (d ? ' date' : '') + '"><span>' + l + '</span><span>' + v + '</span></div>'; }
   return '<div class="bloc">' + titreBloc('bail', 'Bail commercial') + (etatBlocs.bail ? '<div class="contenu-bloc">' : '<div class="contenu-bloc" hidden>') +
-    ligne('Date de signature', dateLongue(b.signature), true) +
-    ligne('Date d’entrée en vigueur', dateLongue(b.entree), true) +
-    ligne('Date d’expiration', dateLongue(b.expiration), true) +
-    ligne('Durée du bail', b.duree) +
-    ligne('Faculté de résiliation triennale', b.triennale ? 'Oui' : 'Non') +
+    '<h5 class="sous-titre">Dates et durée</h5>' +
+    ligne('Signature', dateLongue(b.signature), true) +
+    ligne('Entrée en vigueur', dateLongue(b.entree), true) +
+    ligne('Expiration', dateLongue(b.expiration), true) +
+    ligne('Durée', b.duree) +
+    '<h5 class="sous-titre">Résiliation triennale</h5>' +
+    ligne('Faculté de résiliation', b.triennale ? 'Oui' : 'Non') +
     ligneTriennale(b) +
-    '<div class="indice"><span class="lib">Indice de référence (ILC) à la date de signature</span>' +
-      '<span class="val">' + (ref ? ref.toLocaleString('fr-FR', { minimumFractionDigits: 2 }) : 'valeur non disponible') + '</span>' +
-      '<small>' + (b.trimRef ? libTrimestre(b.trimRef) : '') + '</small></div>' +
-    '<div class="indice dernier"><span class="lib">Dernier indice connu (ILC)</span>' +
+    '<h5 class="sous-titre">Indexation (ILC)</h5>' +
+    '<div class="carte-bail indice-c"><span class="lib">Indice de référence, à la signature</span>' +
+      '<span class="val">' + (ref ? ref.toLocaleString('fr-FR', { minimumFractionDigits: 2 }) : 'Non disponible') + '</span>' +
+      '<span class="detail">' + (b.trimRef ? libTrimestre(b.trimRef) : '') + '</span></div>' +
+    '<div class="carte-bail indice-c dernier"><span class="lib">Dernier indice connu</span>' +
       '<span class="val">' + (der ? der.toLocaleString('fr-FR', { minimumFractionDigits: 2 }) : '—') + '</span>' +
-      '<small>' + libTrimestre(ILC.dernier) + (ILC.publie ? ', publié par l’Insee le ' + dateLongue(new Date(ILC.publie + 'T12:00:00')) : '') + '</small></div>' +
-    '<div class="note-maquette">Source des indices : Insee, série 001532540' + (ILC.direct ? ' (lue en direct).' : ' (valeurs enregistrées).') + ' Maquette : dates du bail fictives.</div>' +
+      '<span class="detail">' + libTrimestre(ILC.dernier) + '</span>' +
+      (ILC.publie ? '<span class="detail">Publié par l’Insee le ' + dateLongue(new Date(ILC.publie + 'T12:00:00')) + '</span>' : '') + '</div>' +
+    '<div class="note-maquette">Source : Insee, série 001532540' + (ILC.direct ? ', lue en direct.' : ', valeurs enregistrées.') + '<br>Maquette : dates du bail fictives.</div>' +
   '</div></div>';
 }
 function codeSite(s) { return 'ARG-' + ('00' + (s.id + 1)).slice(-3); }
