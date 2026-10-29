@@ -69,6 +69,8 @@ button{font:inherit;cursor:pointer}
 .incrustations{background:var(--blanc);border-left:1px solid var(--trait);padding:12px;display:flex;flex-direction:column;gap:12px;min-height:0}
 .ins{position:relative;flex:1;min-height:180px;border:1px solid var(--trait);border-radius:8px;overflow:hidden}
 .ins .vue{position:absolute;inset:0;background:#E8ECEF}
+.sans-1950{position:absolute;left:12px;right:12px;top:50%;transform:translateY(-50%);z-index:450;text-align:center;font-size:12px;color:var(--nuit);background:rgba(255,255,255,.92);border-left:2px solid var(--carmin);border-radius:4px;padding:8px 10px}
+.sans-1950[hidden]{display:none}
 .ins .nom{position:absolute;left:8px;bottom:8px;z-index:500;background:rgba(15,34,56,.82);color:#fff;font-size:12px;border-radius:4px;padding:2px 8px}
 .bascule{position:absolute;left:6px;top:6px;z-index:500;display:flex;background:#fff;border:1px solid var(--trait);border-radius:6px;overflow:hidden}
 .bascule button{border:0;background:#fff;font-size:12px;padding:5px 9px;color:var(--doux)}
@@ -98,6 +100,9 @@ button{font:inherit;cursor:pointer}
 .accueil-fiche button:hover{border-color:var(--carmin);color:var(--carmin)}
 .leaflet-tooltip.monument{background:rgba(15,34,56,.88);color:#fff;border:0;border-left:2px solid var(--carmin);border-radius:2px 4px 4px 2px;font-family:Georgia,serif;font-size:13px;padding:4px 10px;box-shadow:0 2px 8px rgba(0,0,0,.25)}
 .leaflet-tooltip.monument::before{display:none}
+.pastille{width:16px;height:16px;border-radius:50%;background:#A01040;border:2px solid #fff;box-shadow:0 0 0 2px rgba(160,16,64,.35),0 0 12px rgba(160,16,64,.7);cursor:pointer;transition:transform .15s}
+.pastille:hover{transform:scale(1.25)}
+.pastille.groupe{width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-family:Georgia,serif;font-size:13px;color:#fff}
 .sans-doc{font-size:12px;color:var(--doux);font-style:italic;padding:4px 0 6px;border-bottom:1px solid #EEF0F3}
 .genere{font-size:10px;color:var(--canard);border:1px solid var(--canard);border-radius:3px;padding:0 4px;margin-left:6px}
 .assist{margin-top:auto;padding-top:20px}
@@ -277,6 +282,7 @@ body.visite .visite-ctl{display:block}
   <div class="incrustations" aria-label="Vues complémentaires">
     <div class="ins">
       <div class="vue" id="vueAerienne"></div>
+      <div class="sans-1950" id="sans1950" hidden>La photographie des années 1950 ne répond pas pour cet endroit.</div>
       <div class="bascule" id="basculeEpoque" role="group" aria-label="Époque de la vue aérienne">
         <button type="button" data-epoque="auj" aria-pressed="true">Aujourd’hui</button>
         <button type="button" data-epoque="1950" aria-pressed="false">Années 1950</button>
@@ -312,7 +318,7 @@ body.visite .visite-ctl{display:block}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/4.7.1/maplibre-gl.min.js"></script>
 <script>
-/* ===================== ARGOS · maquette v0.22 · clients et documents fictifs, parcelles réelles lues au cadastre ===================== */
+/* ===================== ARGOS · maquette v0.25 · clients et documents fictifs, parcelles réelles lues au cadastre ===================== */
 var MISE_A_JOUR = 'octobre 2026';
 
 var NOTAIRE = {
@@ -386,12 +392,33 @@ function petiteCarte(id, fond) {
 }
 var aerAuj = couche('ORTHOIMAGERY.ORTHOPHOTOS', 'image/jpeg');
 /* Photographies aériennes 1950-1965 de l'IGN (gratuites), servies en WMS par la Géoplateforme */
-var aer1950 = L.tileLayer.wms('https://data.geopf.fr/wms-r/wms', { layers: 'ORTHOIMAGERY.ORTHOPHOTOS.1950-1965', format: 'image/jpeg', version: '1.3.0', maxZoom: 19, detectRetina: true });
+/* Années 1950 : même canal que les autres fonds (tuiles WMTS de la Géoplateforme, déjà éprouvé dans REDPAR et les autres outils).
+   Trois façons de demander l'image, essayées l'une après l'autre si la précédente échoue ; si aucune ne répond, un message le dit. */
+var CANDIDATS_1950 = [
+  function () { var c = couche('ORTHOIMAGERY.ORTHOPHOTOS.1950-1965', 'image/png'); c.options.maxNativeZoom = 18; return c; },
+  function () { var c = couche('ORTHOIMAGERY.ORTHOPHOTOS.1950-1965', 'image/jpeg'); c.options.maxNativeZoom = 18; return c; },
+  function () { return L.tileLayer.wms('https://data.geopf.fr/wms-r/wms', { layers: 'ORTHOIMAGERY.ORTHOPHOTOS.1950-1965', format: 'image/jpeg', version: '1.3.0', maxZoom: 19 }); }
+];
+var rang1950 = 0, echecs1950 = 0, reussites1950 = 0;
+function preparer1950() {
+  var c = CANDIDATS_1950[rang1950]();
+  echecs1950 = 0;
+  c.on('tileload', function () { reussites1950++; document.getElementById('sans1950').hidden = true; });
+  c.on('tileerror', function () {
+    if (++echecs1950 !== 3 || reussites1950 || !aerienne.hasLayer(aer1950)) return;
+    aerienne.removeLayer(aer1950);
+    if (rang1950 < CANDIDATS_1950.length - 1) { rang1950++; aer1950 = preparer1950(); aer1950.addTo(aerienne); formes.aerienne.forEach(function (f) { f.bringToFront(); }); }
+    else document.getElementById('sans1950').hidden = false;
+  });
+  return c;
+}
+var aer1950 = preparer1950();
 var aerienne = petiteCarte('vueAerienne', aerAuj);
 document.getElementById('basculeEpoque').addEventListener('click', function (e) {
   var b = e.target.closest('button'); if (!b) return;
   var ancien = b.getAttribute('data-epoque') === '1950';
   aerienne.removeLayer(ancien ? aerAuj : aer1950);
+  if (!ancien) document.getElementById('sans1950').hidden = true;
   (ancien ? aer1950 : aerAuj).addTo(aerienne);
   formes.aerienne.forEach(function (f) { f.bringToFront(); });
   document.querySelectorAll('#basculeEpoque button').forEach(function (x) { x.setAttribute('aria-pressed', String(x === b)); });
@@ -418,7 +445,18 @@ function couleurSup(t) {
   return '#8A939D';
 }
 var zonesSup = L.geoJSON(null, {
-  style: function (f) { var c = couleurSup((f.properties || {}).suptype); return { color: c, weight: 2.5, opacity: 0.95, fillColor: c, fillOpacity: 0.3 }; },
+  /* Les grandes servitudes (abords de monument, site classé…) qui couvrent tout l'écran ne sont plus remplies : seul leur contour reste, le plan demeure lisible */
+  style: function (f) {
+    var c = couleurSup((f.properties || {}).suptype), remplissage = 0.16;
+    var g = f.geometry || {};
+    if (/Polygon/.test(g.type)) {
+      var x0 = 180, y0 = 90, x1 = -180, y1 = -90;
+      (function parcours(t) { if (typeof t[0] === 'number') { x0 = Math.min(x0, t[0]); x1 = Math.max(x1, t[0]); y0 = Math.min(y0, t[1]); y1 = Math.max(y1, t[1]); } else t.forEach(parcours); })(g.coordinates);
+      var v = cadastre.getBounds();
+      if (x0 <= v.getWest() && x1 >= v.getEast() && y0 <= v.getSouth() && y1 >= v.getNorth()) remplissage = 0.04;
+    }
+    return { color: c, weight: 2.5, opacity: 0.95, fillColor: c, fillOpacity: remplissage, dashArray: remplissage < 0.1 ? '7 5' : null };
+  },
   pointToLayer: function (f, ll) { return L.circleMarker(ll, { radius: 5, color: '#fff', weight: 1.5, fillColor: couleurSup((f.properties || {}).suptype), fillOpacity: 1 }); },
   onEachFeature: function (f, l) { var p = f.properties || {}; l.bindTooltip(String(p.suptype || '').toUpperCase() + (p.nomsuplitt ? ' · ' + p.nomsuplitt : (p.nomass ? ' · ' + p.nomass : '')), { sticky: true, className: 'adresse' }); }
 });
@@ -483,6 +521,41 @@ SITES.forEach(function (s) {
   formes.aerienne.push(L.polygon(p, STYLE_AERIEN).addTo(aerienne));
   formes.cadastre.push(L.polygon(p, STYLE_CADASTRE).addTo(cadastre));
 });
+
+/* ---------- Pastilles : vue d'ensemble (carte de France). Une par commune en vue large, une par site en vue intermédiaire ---------- */
+var calquePastilles = L.layerGroup().addTo(carte);
+var ZOOM_SITES = 11, ZOOM_PARCELLES = 14;
+function iconePastille(n) {
+  return L.divIcon({ className: '', html: '<div class="pastille' + (n > 1 ? ' groupe' : '') + '">' + (n > 1 ? n : '') + '</div>',
+    iconSize: n > 1 ? [28, 28] : [16, 16], iconAnchor: n > 1 ? [14, 14] : [8, 8] });
+}
+function dessinerPastilles() {
+  calquePastilles.clearLayers();
+  var z = carte.getZoom();
+  if (z >= ZOOM_PARCELLES) return;
+  if (z < ZOOM_SITES) {
+    var parCommune = {};
+    SITES.forEach(function (s) { (parCommune[s.commune + '|' + s.cp] = parCommune[s.commune + '|' + s.cp] || []).push(s); });
+    Object.keys(parCommune).forEach(function (k) {
+      var g = parCommune[k], lat = 0, lng = 0;
+      g.forEach(function (s) { lat += s.lat; lng += s.lng; });
+      var m = L.marker([lat / g.length, lng / g.length], { icon: iconePastille(g.length), keyboard: false })
+        .bindTooltip(g[0].commune + ' (' + g[0].cp + ')' + (g.length > 1 ? ' · ' + g.length + ' sites' : ' · ' + g[0].rue), { className: 'adresse', direction: 'top', offset: [0, -10] })
+        .on('click', function () {
+          if (g.length === 1) choisir(g[0].id, true);
+          else carte.flyToBounds(L.latLngBounds(g.map(function (s) { return [s.lat, s.lng]; })).pad(0.6), { duration: 0.9, maxZoom: 16 });
+        });
+      calquePastilles.addLayer(m);
+    });
+  } else {
+    SITES.forEach(function (s) {
+      calquePastilles.addLayer(L.marker([s.lat, s.lng], { icon: iconePastille(1), keyboard: false })
+        .bindTooltip(s.rue + ', ' + s.cp + ' ' + s.commune, { className: 'adresse', direction: 'top', offset: [0, -8] })
+        .on('click', function () { choisir(s.id, true); }));
+    });
+  }
+}
+carte.on('zoomend', dessinerPastilles);
 
 /* ---------- Synchronisation des trois vues, avec cadenas ---------- */
 var fige = { aerienne: false, cadastre: false };
@@ -838,12 +911,31 @@ function annoncer(t) {
     }) };
   }
   /* Pour l'ouverture : d'autres immeubles du client (carmin) et des zones signalées (alertes), autour des deux sites */
-  var AUTRES = [[48.8722, 2.3088], [48.8746, 2.3058], [48.8716, 2.3030]];
+  var AUTRES = [[48.8722, 2.3088], [48.8746, 2.3058], [48.8716, 2.3030], [48.8731, 2.3112], [48.8702, 2.3066], [48.8739, 2.3027], [48.8707, 2.3118],
+    [48.8752, 2.3090], [48.8712, 2.3045], [48.8726, 2.3048], [48.8718, 2.3125], [48.8748, 2.3115], [48.8755, 2.3040], [48.8735, 2.3075]];
   var ALERTES = [AUTRES[0], AUTRES[2]];
+  /* Si le point tombe sur la voirie, on cherche la parcelle voisine (petite spirale) */
+  var PAS_SPIRALE = [[0, 0], [0.00022, 0], [-0.00022, 0], [0, 0.0003], [0, -0.0003]];
+  function lireAutour(lat, lng) {
+    var i = 0;
+    function essai() {
+      if (i >= PAS_SPIRALE.length) return Promise.resolve(null);
+      var d = PAS_SPIRALE[i++];
+      return demanderParcelle(lng + d[1], lat + d[0]).then(function (f) { return f || essai(); }, function () { return essai(); });
+    }
+    return essai();
+  }
   function lirePoints(pts) {
+    var vus = {};
     return Promise.all(pts.map(function (pt, k) {
-      return attendre(120 * k).then(function () { return window.fetch ? demanderParcelle(pt[1], pt[0]) : null; }).catch(function () { return null; });
-    })).then(function (fs) { return { type: 'FeatureCollection', features: fs.filter(Boolean).map(function (f) { return { type: 'Feature', properties: {}, geometry: f.geometry }; }) }; });
+      return attendre(110 * k).then(function () { return window.fetch ? lireAutour(pt[0], pt[1]) : null; }).catch(function () { return null; });
+    })).then(function (fs) {
+      return { type: 'FeatureCollection', features: fs.filter(function (f) {
+        if (!f) return false;
+        var cle = (f.properties && (f.properties.idu || f.properties.id)) || JSON.stringify(f.geometry.coordinates).slice(0, 80);
+        if (vus[cle]) return false; vus[cle] = true; return true;
+      }).map(function (f) { return { type: 'Feature', properties: {}, geometry: f.geometry }; }) };
+    });
   }
   var autresPret = lirePoints(AUTRES);
   function signalerAlertes() {
@@ -893,38 +985,47 @@ function annoncer(t) {
   var chaos = null;
   function lancerChaos(g) {
     if (!g || !g.features.length || fini) return;
-    var n = g.features.length;
     carte3d.addSource('mosaique', { type: 'geojson', data: g });
     carte3d.addLayer({ id: 'mosaique-fond', type: 'fill', source: 'mosaique', paint: {
       'fill-color': ['coalesce', ['feature-state', 'c'], '#FFFFFF'], 'fill-opacity': ['coalesce', ['feature-state', 'o'], 0],
-      'fill-opacity-transition': { duration: 450 }, 'fill-color-transition': { duration: 450 } } });
+      'fill-opacity-transition': { duration: 380 }, 'fill-color-transition': { duration: 300 } } });
     carte3d.addLayer({ id: 'mosaique-trait', type: 'line', source: 'mosaique', paint: {
-      'line-color': '#FFFFFF', 'line-width': 1.5, 'line-opacity': ['coalesce', ['feature-state', 'l'], 0.6], 'line-opacity-transition': { duration: 300 } } });
+      'line-color': '#FFFFFF', 'line-width': 1.5, 'line-opacity': ['coalesce', ['feature-state', 'l'], 0.35], 'line-opacity-transition': { duration: 300 } } });
     carte3d.addSource('coupes', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
     carte3d.addLayer({ id: 'coupes', type: 'line', source: 'coupes', paint: { 'line-color': '#6DD5DC', 'line-width': 2.2, 'line-dasharray': [2, 1.2], 'line-opacity': 0.95 } });
-    var debut = performance.now(), pas = 0;
+    /* Les changements passent d'une parcelle à l'autre : chacune s'allume à son tour puis s'éteint, jamais deux fois de suite la même */
+    var ordre = [], allumees = [], derniere = 0, couleur = 0;
+    function suivante() {
+      var n = g.features.length;
+      if (!ordre.length) {
+        for (var i = 1; i <= n; i++) ordre.push(i);
+        for (var j = ordre.length - 1; j > 0; j--) { var r = Math.floor(Math.random() * (j + 1)), t = ordre[j]; ordre[j] = ordre[r]; ordre[r] = t; }
+        if (n > 1 && ordre[0] === derniere) ordre.push(ordre.shift());
+      }
+      return ordre.shift();
+    }
     chaos = setInterval(function () {
       if (fini) { clearInterval(chaos); return; }
-      pas++;
-      var intensite = Math.min(1, (performance.now() - debut) / 2500);
-      var k = Math.max(1, Math.round(n * (0.3 + 0.4 * intensite)));
-      for (var i = 0; i < k; i++) {
-        var id = 1 + Math.floor(Math.random() * n);
-        if (Math.random() < 0.3) carte3d.setFeatureState({ source: 'mosaique', id: id }, { o: 0, l: 0.25 });
-        else carte3d.setFeatureState({ source: 'mosaique', id: id }, { c: PALETTE[Math.floor(Math.random() * PALETTE.length)], o: 0.25 + Math.random() * 0.5, l: 0.9 });
-      }
-      /* redécoupages : des traits de coupe qui traversent des parcelles puis disparaissent */
-      if (pas % 2 === 0) {
-        var coupes = [];
-        for (var j = 0; j < 1 + Math.round(2 * intensite); j++) {
-          var b = boite(g.features[Math.floor(Math.random() * n)].geometry), a = Math.random();
-          coupes.push({ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: a < 0.5
-            ? [[b[0], b[1] + (b[3] - b[1]) * Math.random()], [b[2], b[1] + (b[3] - b[1]) * Math.random()]]
-            : [[b[0] + (b[2] - b[0]) * Math.random(), b[1]], [b[0] + (b[2] - b[0]) * Math.random(), b[3]]] } });
-        }
-        carte3d.getSource('coupes').setData({ type: 'FeatureCollection', features: coupes });
-      }
-    }, 170);
+      var id = suivante();
+      derniere = id;
+      couleur = (couleur + 1 + Math.floor(Math.random() * (PALETTE.length - 1))) % PALETTE.length;
+      carte3d.setFeatureState({ source: 'mosaique', id: id }, { c: PALETTE[couleur], o: 0.55 + Math.random() * 0.25, l: 1 });
+      allumees.push(id);
+      /* deux parcelles au plus restent allumées : la plus ancienne s'éteint */
+      while (allumees.length > 2) carte3d.setFeatureState({ source: 'mosaique', id: allumees.shift() }, { o: 0, l: 0.35 });
+      /* trait de coupe qui traverse la parcelle qui vient de s'allumer */
+      var b = boite(g.features[id - 1].geometry), a = Math.random();
+      carte3d.getSource('coupes').setData({ type: 'FeatureCollection', features: [{ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: a < 0.5
+        ? [[b[0], b[1] + (b[3] - b[1]) * (0.25 + 0.5 * Math.random())], [b[2], b[1] + (b[3] - b[1]) * (0.25 + 0.5 * Math.random())]]
+        : [[b[0] + (b[2] - b[0]) * (0.25 + 0.5 * Math.random()), b[1]], [b[0] + (b[2] - b[0]) * (0.25 + 0.5 * Math.random()), b[3]]] } }] });
+    }, 300);
+    /* les autres parcelles du client arrivent du cadastre : elles rejoignent la ronde dès qu'elles sont lues */
+    mosaiquePrete.then(function (tout) {
+      if (fini || !tout || tout.features.length <= g.features.length || !carte3d.getSource('mosaique')) return;
+      g.features = tout.features;
+      carte3d.getSource('mosaique').setData(g);
+      ordre.length = 0;
+    });
   }
   function stabiliser() {
     if (chaos) clearInterval(chaos);
@@ -937,20 +1038,14 @@ function annoncer(t) {
   carte3d.on('load', function () {
     if (parti || fini) return; parti = true;
     /* Phase instable : le quartier se colore, se redécoupe, change sans cesse ; puis ARGOS met de l'ordre */
-    mosaiquePrete.then(lancerChaos);
+    /* si le cadastre tarde, la phase instable démarre avec les parcelles déjà connues */
+    Promise.race([mosaiquePrete, attendre(1800).then(function () {
+      return { type: 'FeatureCollection', features: parcellesClient().features.map(function (f, i) { return { type: 'Feature', id: i + 1, properties: {}, geometry: f.geometry }; }) };
+    })]).then(lancerChaos);
     carte3d.easeTo({ center: [cLng, cLat - 0.0004], zoom: 17.3, pitch: 16, bearing: 15, duration: 8500,
       easing: function (t) { return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; } });
     plus(stabiliser, 6300);
     plus(allumerParcelles, 6700);
-    plus(signalerAlertes, 7700);
-    survol.forEach(function (s, i) {
-      var el = document.createElement('div');
-      el.className = 'balise';
-      el.innerHTML = '<div class="faisceau"></div><div class="pied-b"></div>' +
-        '<div class="carte-b"><b>' + s.commune + '</b><span>' + s.rue + '</span><span>' + s.nature + (s.surface && s.surface !== '—' ? ' · ' + s.surface : '') + '</span><i></i></div>';
-      new maplibregl.Marker({ element: el, anchor: 'bottom' }).setLngLat([s.lng, s.lat]).addTo(carte3d);
-      plus(function () { el.classList.add('pose'); }, 8300 + i * 800);
-    });
     plus(function () { carte3d.easeTo({ bearing: 28, zoom: 17.5, duration: 4500, easing: function (t) { return t; } }); }, 8500);
     plus(function () { intro.classList.add('titre'); }, 9800);
     plus(finir, 13400);
@@ -987,6 +1082,7 @@ function lireParcelle(s) {
       formes.cadastre[s.id].setLatLngs(ll);
       var c = formes.carte[s.id].getBounds().getCenter();
       s.lat = c.lat; s.lng = c.lng;
+      clearTimeout(window.minuteurPastilles); window.minuteurPastilles = setTimeout(dessinerPastilles, 300);
     })
     .catch(function () { if (!s.parcelles) { s.parcelles = ['non lue']; s.surface = '—'; } })
     .then(function () { if (courant === s.id) afficherFiche(s); return lireZonage(s); });
@@ -1017,6 +1113,7 @@ construireListe();
 carte.setView([ACCUEIL.lat, ACCUEIL.lng], ACCUEIL.zoom);
 synchroniser();
 afficherAccueil();
+dessinerPastilles();
 /* Lecture des sites l'un après l'autre (le service public limite les appels simultanés), le site affiché en premier */
 (function () {
   var file = SITES.slice().sort(function (a, b) { return (b.id === courant) - (a.id === courant); });
