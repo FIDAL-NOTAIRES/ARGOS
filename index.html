@@ -33,7 +33,7 @@ button{font:inherit;cursor:pointer}
 .btn-tete{background:transparent;color:#fff;border:1px solid rgba(255,255,255,.35);border-radius:6px;padding:6px 12px;font-size:13px;display:inline-flex;align-items:center;gap:6px}
 .btn-tete:hover{background:rgba(255,255,255,.1)}
 .btn-tete svg{width:16px;height:16px}
-.corps{display:grid;grid-template-columns:240px minmax(0,1fr) 320px 290px;height:calc(100% - var(--tete) - env(safe-area-inset-top,0px))}
+.corps{display:grid;grid-template-columns:240px 300px minmax(0,1fr) 320px;height:calc(100% - var(--tete) - env(safe-area-inset-top,0px))}
 .liste{background:var(--blanc);border-right:1px solid var(--trait);display:flex;flex-direction:column;min-height:0}
 .outils{padding:12px;display:flex;flex-direction:column;gap:8px;border-bottom:1px solid var(--trait)}
 .outils input,.outils select{height:34px;border:1px solid var(--trait);border-radius:6px;padding:0 10px;font:inherit;font-size:13px;background:#fff;color:var(--texte)}
@@ -66,7 +66,7 @@ button{font:inherit;cursor:pointer}
 .btn-carte:hover{background:var(--fond)}
 .btn-carte svg{width:16px;height:16px}
 #btnPlein{top:12px;right:12px}
-.incrustations{background:var(--blanc);border-right:1px solid var(--trait);padding:12px;display:flex;flex-direction:column;gap:12px;min-height:0}
+.incrustations{background:var(--blanc);border-left:1px solid var(--trait);padding:12px;display:flex;flex-direction:column;gap:12px;min-height:0}
 .ins{position:relative;flex:1;min-height:180px;border:1px solid var(--trait);border-radius:8px;overflow:hidden}
 .ins .vue{position:absolute;inset:0;background:#E8ECEF}
 .ins .nom{position:absolute;left:8px;bottom:8px;z-index:500;background:rgba(15,34,56,.82);color:#fff;font-size:12px;border-radius:4px;padding:2px 8px}
@@ -82,7 +82,7 @@ button{font:inherit;cursor:pointer}
 .cadenas svg{width:16px;height:16px}
 .cadenas.ferme{color:var(--carmin);border-color:var(--carmin)}
 .aide-ins{font-size:11px;color:var(--doux);line-height:1.4}
-.fiche{background:var(--blanc);overflow-y:auto;padding:18px 18px 14px;display:flex;flex-direction:column}
+.fiche{background:var(--blanc);border-right:1px solid var(--trait);overflow-y:auto;padding:18px 18px 14px;display:flex;flex-direction:column}
 .theme{margin-top:10px}
 .theme h4{margin:0 0 2px;font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--doux)}
 .sans-doc{font-size:12px;color:var(--doux);font-style:italic;padding:4px 0 6px;border-bottom:1px solid #EEF0F3}
@@ -241,6 +241,8 @@ body.visite .visite-ctl{display:block}
     <div class="resume" id="resume"></div>
   </aside>
 
+  <aside class="fiche" id="fiche" aria-label="Fiche du site"></aside>
+
   <section class="carte-zone" id="zoneCarte" aria-label="Carte des sites">
     <div id="carte"></div>
     <button class="btn-carte" id="btnPlein" type="button">
@@ -278,7 +280,6 @@ body.visite .visite-ctl{display:block}
     <p class="aide-ins">Ces deux vues suivent le plan. Le cadenas les fige sur l’endroit affiché. La seconde vue bascule entre le zonage d’urbanisme et le cadastre.</p>
   </div>
 
-  <aside class="fiche" id="fiche" aria-label="Fiche du site"></aside>
 </main>
 
 <div class="voile" id="voileContact" role="dialog" aria-modal="true" aria-labelledby="titreContact">
@@ -293,7 +294,7 @@ body.visite .visite-ctl{display:block}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/4.7.1/maplibre-gl.min.js"></script>
 <script>
-/* ===================== ARGOS · maquette v0.16 · clients et documents fictifs, parcelles réelles lues au cadastre ===================== */
+/* ===================== ARGOS · maquette v0.17 · clients et documents fictifs, parcelles réelles lues au cadastre ===================== */
 var MISE_A_JOUR = 'octobre 2026';
 
 var NOTAIRE = {
