@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ARGOS · FIDAL Notaires</title>
+<meta name="robots" content="noindex, nofollow">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+:root{
+  --nuit:#0F2238; --canard:#33838B; --carmin:#A01040; --cyan:#6DD5DC; --orange:#FF982D;
+  --fond:#F5F6F8; --blanc:#FFFFFF; --trait:#DDE1E7; --texte:#1B2430; --doux:#5E6875;
+  --tete:56px;
+  font-family:"Segoe UI",system-ui,-apple-system,Roboto,Arial,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--fond);color:var(--texte)}
+body{overflow:hidden}
+button{font:inherit;cursor:pointer}
+.tete{height:var(--tete);background:var(--nuit);color:#fff;display:flex;align-items:center;gap:18px;padding:0 16px;padding-top:env(safe-area-inset-top,0px)}
+.marque{display:flex;align-items:baseline;gap:10px}
+.marque b{font-family:Georgia,"Times New Roman",serif;font-weight:400;font-size:22px;letter-spacing:.12em}
+.marque span{font-size:12px;color:var(--cyan)}
+.client{font-size:14px;opacity:.9;border-left:1px solid rgba(255,255,255,.25);padding-left:16px}
+.chiffres{display:flex;gap:8px}
+.chiffre{background:rgba(255,255,255,.08);border-radius:6px;padding:4px 10px;font-size:12px;color:#C9D3DE}
+.chiffre strong{color:#fff;font-weight:600;font-size:13px}
+.demo{font-size:11px;color:var(--nuit);background:var(--cyan);border-radius:4px;padding:2px 8px}
+.espace{flex:1}
+.btn-tete{background:transparent;color:#fff;border:1px solid rgba(255,255,255,.35);border-radius:6px;padding:6px 12px;font-size:13px;display:inline-flex;align-items:center;gap:6px}
+.btn-tete:hover{background:rgba(255,255,255,.1)}
+.btn-tete svg{width:16px;height:16px}
+.corps{display:grid;grid-template-columns:260px minmax(0,1fr) 210px 310px;height:calc(100% - var(--tete) - env(safe-area-inset-top,0px))}
+.liste{background:var(--blanc);border-right:1px solid var(--trait);display:flex;flex-direction:column;min-height:0}
+.outils{padding:12px;display:flex;flex-direction:column;gap:8px;border-bottom:1px solid var(--trait)}
+.outils input,.outils select{height:34px;border:1px solid var(--trait);border-radius:6px;padding:0 10px;font:inherit;font-size:13px;background:#fff;color:var(--texte)}
+.outils input:focus,.outils select:focus{outline:2px solid var(--canard);outline-offset:-1px}
+.defile{overflow-y:auto;flex:1;padding:6px 0 16px}
+.commune{font-family:Georgia,serif;font-size:15px;color:var(--nuit);padding:12px 14px 4px;display:flex;justify-content:space-between;align-items:baseline}
+.commune small{font-family:"Segoe UI",sans-serif;font-size:11px;color:var(--doux)}
+.rue{display:block;width:100%;text-align:left;background:none;border:0;border-left:3px solid transparent;padding:6px 14px 6px 18px;font-size:13px;color:var(--texte)}
+.rue:hover{background:var(--fond)}
+.rue.actif{border-left-color:var(--carmin);background:#FBEFF3;color:var(--carmin);font-weight:600}
+.rue:focus-visible{outline:2px solid var(--canard);outline-offset:-2px}
+.vide{padding:20px 14px;font-size:13px;color:var(--doux)}
+.carte-zone{position:relative;min-height:0}
+#carte{position:absolute;inset:0;background:#E8ECEF}
+.btn-carte{position:absolute;z-index:500;background:#fff;border:1px solid var(--trait);border-radius:6px;height:34px;padding:0 10px;display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--nuit);box-shadow:0 1px 3px rgba(15,34,56,.15)}
+.btn-carte:hover{background:var(--fond)}
+.btn-carte svg{width:16px;height:16px}
+#btnPlein{top:12px;right:12px}
+.incrustations{background:var(--blanc);border-right:1px solid var(--trait);padding:12px;display:flex;flex-direction:column;gap:12px;min-height:0}
+.ins{position:relative;flex:1;min-height:150px;border:1px solid var(--trait);border-radius:8px;overflow:hidden}
+.ins .vue{position:absolute;inset:0;background:#E8ECEF}
+.ins .nom{position:absolute;left:8px;bottom:8px;z-index:500;background:rgba(15,34,56,.82);color:#fff;font-size:12px;border-radius:4px;padding:2px 8px}
+.cadenas{position:absolute;right:6px;top:6px;z-index:500;width:30px;height:30px;border-radius:6px;border:1px solid var(--trait);background:#fff;display:grid;place-items:center;color:var(--canard)}
+.cadenas svg{width:16px;height:16px}
+.cadenas.ferme{color:var(--carmin);border-color:var(--carmin)}
+.aide-ins{font-size:11px;color:var(--doux);line-height:1.4}
+.fiche{background:var(--blanc);overflow-y:auto;padding:18px 18px 24px}
+.fiche h2{font-family:Georgia,serif;font-weight:400;font-size:22px;margin:0;color:var(--nuit)}
+.fiche .adr{margin:4px 0 0;font-size:14px;color:var(--doux)}
+.nav-site{display:flex;gap:8px;margin:14px 0 16px}
+.nav-site button{flex:1;height:32px;border:1px solid var(--trait);border-radius:6px;background:#fff;font-size:13px;color:var(--nuit)}
+.nav-site button:hover{background:var(--fond)}
+.bloc{border-top:1px solid var(--trait);padding-top:12px;margin-top:12px}
+.bloc h3{font-size:12px;font-weight:600;color:var(--canard);margin:0 0 8px}
+.ligne{display:flex;justify-content:space-between;gap:12px;font-size:13px;padding:3px 0}
+.ligne span:first-child{color:var(--doux)}
+.doc{display:flex;align-items:center;gap:10px;width:100%;background:none;border:0;border-bottom:1px solid #EEF0F3;padding:8px 0;font-size:13px;color:var(--texte);text-align:left}
+.doc:hover{color:var(--carmin)}
+.doc svg{width:18px;height:18px;flex:none;color:var(--doux)}
+.doc .dl{margin-left:auto;color:var(--canard)}
+.interloc{font-size:13px;padding:6px 0;line-height:1.45}
+.interloc strong{display:block;font-weight:600;color:var(--nuit)}
+.interloc a{color:var(--canard)}
+.achat{display:block;width:100%;margin-top:16px;height:40px;border:0;border-radius:6px;background:var(--carmin);color:#fff;font-size:14px}
+.achat:hover{filter:brightness(1.08)}
+.leaflet-tooltip.adresse{background:var(--nuit);color:#fff;border:0;border-radius:4px;font-size:12px;padding:4px 8px;box-shadow:none}
+.leaflet-tooltip.adresse::before{border-top-color:var(--nuit)}
+.leaflet-container{font-family:inherit}
+/* Mode visite */
+.visite-ctl{display:none}
+body.visite .liste,body.visite .incrustations,body.visite .fiche,body.visite #btnPlein{display:none}
+body.visite .corps{grid-template-columns:1fr}
+body.visite .visite-ctl{display:block}
+.choix-commune{position:absolute;top:14px;left:50%;transform:translateX(-50%);z-index:600;display:flex;align-items:center;gap:10px;background:var(--nuit);color:#fff;border-radius:8px;padding:8px 12px;font-size:13px}
+.choix-commune select{height:30px;border-radius:5px;border:0;padding:0 8px;font:inherit;font-size:13px}
+.choix-commune button{background:transparent;border:1px solid rgba(255,255,255,.4);color:#fff;border-radius:5px;height:30px;padding:0 10px;font-size:13px}
+.fleche{position:absolute;top:50%;transform:translateY(-50%);z-index:600;width:56px;height:56px;border-radius:50%;border:0;background:rgba(15,34,56,.85);color:#fff;display:grid;place-items:center}
+.fleche:hover{background:var(--nuit)}
+.fleche svg{width:26px;height:26px}
+.fleche.g{left:20px}.fleche.d{right:20px}
+.bandeau-visite{position:absolute;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:600;background:#fff;border-radius:10px;box-shadow:0 4px 16px rgba(15,34,56,.2);padding:12px 18px;display:flex;align-items:center;gap:18px;max-width:calc(100% - 140px)}
+.bandeau-visite .rang{font-size:12px;color:var(--doux);white-space:nowrap}
+.bandeau-visite h2{font-family:Georgia,serif;font-weight:400;font-size:20px;margin:0;color:var(--nuit)}
+.bandeau-visite p{margin:2px 0 0;font-size:13px;color:var(--doux)}
+.bandeau-visite .liens{display:flex;gap:12px;font-size:13px;color:var(--canard);white-space:nowrap}
+/* Fenêtre contact et message */
+.voile{position:fixed;inset:0;background:rgba(15,34,56,.45);z-index:2000;display:none;align-items:center;justify-content:center;padding:20px}
+.voile.ouvert{display:flex}
+.fenetre{background:#fff;border-radius:10px;max-width:440px;width:100%;padding:22px 24px}
+.fenetre h2{font-family:Georgia,serif;font-weight:400;margin:0 0 12px;color:var(--nuit)}
+.fenetre .fermer{margin-top:16px;height:34px;border:1px solid var(--trait);background:#fff;border-radius:6px;padding:0 14px}
+#message{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);opacity:0;background:var(--nuit);color:#fff;border-radius:8px;padding:10px 16px;font-size:13px;z-index:3000;transition:opacity .25s,transform .25s;pointer-events:none;max-width:90%}
+#message.vu{opacity:1;transform:translateX(-50%) translateY(0)}
+/* Animation d'ouverture */
+#intro{position:fixed;inset:0;z-index:5000;background:var(--nuit);display:grid;place-items:center;transition:opacity .6s ease,transform .6s ease}
+#intro.part{opacity:0;transform:translateX(-4%)}
+.intro-boite{display:flex;flex-direction:column;align-items:center}
+.oeil{width:120px;height:60px;margin-bottom:22px}
+.oeil .paupiere{transform-origin:60px 30px;animation:ouvre .7s .2s ease-out both}
+.oeil .iris{transform-origin:60px 30px;animation:iris .5s .75s ease-out both}
+@keyframes ouvre{from{transform:scaleY(0)}to{transform:scaleY(1)}}
+@keyframes iris{from{transform:scale(0)}to{transform:scale(1)}}
+.nom-intro{font-family:Georgia,serif;color:#fff;font-size:64px;letter-spacing:.6em;padding-left:.6em;animation:serre 1s .9s ease-out both}
+@keyframes serre{from{letter-spacing:.6em;opacity:0}to{letter-spacing:.16em;opacity:1}}
+.trait-intro{height:2px;background:var(--cyan);width:0;margin-top:14px;animation:trait .6s 1.6s ease-out forwards}
+@keyframes trait{to{width:240px}}
+.sous-intro{margin-top:10px;color:var(--cyan);font-size:14px;letter-spacing:.08em;opacity:0;animation:apparait .5s 1.9s ease-out forwards}
+@keyframes apparait{to{opacity:1}}
+@media (prefers-reduced-motion: reduce){#intro{display:none}}
+@media (max-width:1100px){
+  body{overflow:auto}
+  .corps{display:flex;flex-direction:column;height:auto}
+  .liste{max-height:280px}
+  .carte-zone{height:60vh}
+  .incrustations{flex-direction:row;border-right:0;border-bottom:1px solid var(--trait)}
+  .aide-ins{display:none}
+  .chiffres,.client{display:none}
+  body.visite{overflow:hidden}
+  body.visite .carte-zone{height:calc(100vh - var(--tete))}
+}
+@media (max-width:600px){
+  .btn-tete .txt{display:none}
+  .bandeau-visite{flex-direction:column;align-items:flex-start;gap:6px;max-width:calc(100% - 24px)}
+  .fleche{top:auto;bottom:150px}
+}
+</style>
+</head>
+<body>
+
+<div id="intro" role="presentation" aria-hidden="true">
+  <div class="intro-boite">
+    <svg class="oeil" viewBox="0 0 120 60" aria-hidden="true">
+      <g class="paupiere"><path d="M4 30 Q60 -14 116 30 Q60 74 4 30 Z" fill="none" stroke="#6DD5DC" stroke-width="2.5"/></g>
+      <g class="iris"><circle cx="60" cy="30" r="14" fill="#A01040"/><circle cx="60" cy="30" r="6" fill="#0F2238"/></g>
+    </svg>
+    <div class="nom-intro">ARGOS</div>
+    <div class="trait-intro"></div>
+    <div class="sous-intro">FIDAL Notaires</div>
+  </div>
+</div>
+
+<header class="tete">
+  <div class="marque"><b>ARGOS</b><span>FIDAL Notaires</span></div>
+  <div class="client">Client de démonstration</div>
+  <div class="chiffres" id="chiffres"></div>
+  <span class="demo">Maquette · données fictives</span>
+  <div class="espace"></div>
+  <button class="btn-tete" id="btnVisite" type="button">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="12" rx="1"/><path d="M12 16v4M8 20h8"/></svg>
+    <span class="txt">Mode visite</span>
+  </button>
+  <button class="btn-tete" id="btnContact" type="button">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16v11H8l-4 4z"/></svg>
+    <span class="txt">Nous contacter</span>
+  </button>
+</header>
+
+<main class="corps">
+  <aside class="liste" aria-label="Liste des sites">
+    <div class="outils">
+      <input id="recherche" type="search" placeholder="Commune ou rue" aria-label="Rechercher une commune ou une rue">
+      <select id="region" aria-label="Filtrer par région"></select>
+    </div>
+    <div class="defile" id="liste"></div>
+  </aside>
+
+  <section class="carte-zone" id="zoneCarte" aria-label="Carte des sites">
+    <div id="carte"></div>
+    <button class="btn-carte" id="btnPlein" type="button">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
+      <span id="txtPlein">Plein écran</span>
+    </button>
+    <div class="visite-ctl">
+      <div class="choix-commune">
+        <label for="visiteCommune">Commune</label>
+        <select id="visiteCommune"></select>
+        <button type="button" id="quitterVisite">Quitter la visite</button>
+      </div>
+      <button class="fleche g" id="visitePrec" type="button" aria-label="Site précédent"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 5l-7 7 7 7"/></svg></button>
+      <button class="fleche d" id="visiteSuiv" type="button" aria-label="Site suivant"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 5l7 7-7 7"/></svg></button>
+      <div class="bandeau-visite" id="bandeauVisite"></div>
+    </div>
+  </section>
+
+  <div class="incrustations" aria-label="Vues complémentaires">
+    <div class="ins">
+      <div class="vue" id="vueAerienne"></div>
+      <span class="nom">Vue aérienne</span>
+      <button class="cadenas" type="button" data-vue="aerienne" aria-label="Figer la vue aérienne" title="Figer la vue"></button>
+    </div>
+    <div class="ins">
+      <div class="vue" id="vueCadastre"></div>
+      <span class="nom">Cadastre</span>
+      <button class="cadenas" type="button" data-vue="cadastre" aria-label="Figer le cadastre" title="Figer la vue"></button>
+    </div>
+    <p class="aide-ins">Ces deux vues suivent le plan. Le cadenas les fige sur l’endroit affiché.</p>
+  </div>
+
+  <aside class="fiche" id="fiche" aria-label="Fiche du site"></aside>
+</main>
+
+<div class="voile" id="voileContact" role="dialog" aria-modal="true" aria-labelledby="titreContact">
+  <div class="fenetre">
+    <h2 id="titreContact">Vos interlocuteurs</h2>
+    <div id="contenuContact"></div>
+    <button class="fermer" type="button" data-ferme>Fermer</button>
+  </div>
+</div>
+<div id="message" role="status" aria-live="polite"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+/* ===================== ARGOS · maquette v0.1 · données fictives ===================== */
+var MISE_A_JOUR = 'octobre 2026';
+
+var NOTAIRE = {
+  nom: 'Jean-François Dumetz et son équipe',
+  role: 'FIDAL Notaires · Paris',
+  courriel: 'jean-francois.dumetz@fidal.notaires.fr'
+};
+
+/* Avocats FIDAL par région : chargés par l’administrateur (fictifs ici) */
+var AVOCATS = {
+  'Hauts-de-France': { nom: 'Avocat FIDAL (exemple)', bureau: 'Bureau de Lille' },
+  'Normandie': { nom: 'Avocat FIDAL (exemple)', bureau: 'Bureau de Rouen' },
+  'Île-de-France': { nom: 'Avocat FIDAL (exemple)', bureau: 'Bureau de Paris La Défense' },
+  'Bretagne': { nom: 'Avocat FIDAL (exemple)', bureau: 'Bureau de Rennes' }
+};
+
+/* Sites fictifs : adresses, parcelles et surfaces inventées */
+var SITES = [
+  { commune: 'Lille', cp: '59000', region: 'Hauts-de-France', rue: '12 rue de l’Industrie', lat: 50.6198, lng: 3.0712, parcelles: ['AB 112', 'AB 113'], surface: '4 820 m²', nature: 'Entrepôt' },
+  { commune: 'Lille', cp: '59160', region: 'Hauts-de-France', rue: '3 avenue de la Gare', lat: 50.6430, lng: 2.9890, parcelles: ['CK 45'], surface: '2 150 m²', nature: 'Bureaux' },
+  { commune: 'Amiens', cp: '80000', region: 'Hauts-de-France', rue: '8 rue des Tanneurs', lat: 49.8890, lng: 2.3150, parcelles: ['DS 210'], surface: '6 300 m²', nature: 'Atelier' },
+  { commune: 'Amiens', cp: '80080', region: 'Hauts-de-France', rue: '41 boulevard Nord', lat: 49.9050, lng: 2.2650, parcelles: ['ZB 17', 'ZB 18'], surface: '11 900 m²', nature: 'Plateforme logistique' },
+  { commune: 'Arras', cp: '62000', region: 'Hauts-de-France', rue: '5 rue du Commerce', lat: 50.2900, lng: 2.7900, parcelles: ['AE 301'], surface: '1 740 m²', nature: 'Local commercial' },
+  { commune: 'Rouen', cp: '76000', region: 'Normandie', rue: '22 quai du Port', lat: 49.4300, lng: 1.0700, parcelles: ['LS 88'], surface: '3 260 m²', nature: 'Entrepôt' },
+  { commune: 'Rouen', cp: '76100', region: 'Normandie', rue: '14 rue de la Forge', lat: 49.4480, lng: 1.1100, parcelles: ['BT 9', 'BT 10'], surface: '5 410 m²', nature: 'Atelier' },
+  { commune: 'Le Havre', cp: '76600', region: 'Normandie', rue: '2 route du Môle', lat: 49.4870, lng: 0.1450, parcelles: ['HX 402'], surface: '9 780 m²', nature: 'Plateforme logistique' },
+  { commune: 'Caen', cp: '14000', region: 'Normandie', rue: '7 place des Halles', lat: 49.1900, lng: -0.3500, parcelles: ['BD 7'], surface: '1 120 m²', nature: 'Bureaux' },
+  { commune: 'Nanterre', cp: '92000', region: 'Île-de-France', rue: '30 avenue des Champs Fleuris', lat: 48.8950, lng: 2.2100, parcelles: ['AL 56'], surface: '2 640 m²', nature: 'Bureaux' },
+  { commune: 'Rennes', cp: '35000', region: 'Bretagne', rue: '19 rue de la Mine', lat: 48.0950, lng: -1.6500, parcelles: ['KP 23'], surface: '4 090 m²', nature: 'Entrepôt' },
+  { commune: 'Brest', cp: '29200', region: 'Bretagne', rue: '4 rue du Bassin', lat: 48.4000, lng: -4.4700, parcelles: ['EW 131'], surface: '3 380 m²', nature: 'Atelier' }
+];
+SITES.forEach(function (s, i) { s.id = i; });
+
+/* ---------- Fonds de carte : Géoplateforme IGN, gratuits, sans clé ---------- */
+function couche(layer, format, style) {
+  return L.tileLayer(
+    'https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0' +
+    '&LAYER=' + layer + '&STYLE=' + encodeURIComponent(style || 'normal') +
+    '&TILEMATRIXSET=PM&FORMAT=' + format + '&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}',
+    { maxZoom: 19, maxNativeZoom: layer.indexOf('CADASTRAL') === 0 ? 19 : 18, attribution: '© IGN · Géoplateforme' }
+  );
+}
+
+var carte = L.map('carte', { zoomControl: true, preferCanvas: false }).setView([49.3, 1.5], 7);
+couche('GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2', 'image/png').addTo(carte);
+carte.attributionControl.setPrefix(false);
+
+function petiteCarte(id, fond) {
+  var m = L.map(id, { zoomControl: false, attributionControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false, boxZoom: false, keyboard: false, touchZoom: false });
+  fond.addTo(m);
+  return m;
+}
+var aerienne = petiteCarte('vueAerienne', couche('ORTHOIMAGERY.ORTHOPHOTOS', 'image/jpeg'));
+var cadastre = petiteCarte('vueCadastre', couche('CADASTRALPARCELS.PARCELLAIRE_EXPRESS', 'image/png', 'PCI vecteur'));
+
+/* ---------- Parcelles en carmin (polygones fictifs autour du point) ---------- */
+function contour(s) {
+  var dy = 0.00055, dx = 0.0008, k = (s.id % 3) * 0.00012;
+  return [[s.lat - dy, s.lng - dx + k], [s.lat - dy + k, s.lng + dx], [s.lat + dy, s.lng + dx - k], [s.lat + dy - k, s.lng - dx]];
+}
+var formes = { carte: [], aerienne: [], cadastre: [] };
+SITES.forEach(function (s) {
+  var p = contour(s);
+  var f = L.polygon(p, { color: '#A01040', weight: 2, fillColor: '#A01040', fillOpacity: 0.45 }).addTo(carte);
+  f.bindTooltip(s.rue + ', ' + s.cp + ' ' + s.commune, { className: 'adresse', direction: 'top', sticky: true });
+  f.on('click', function () { choisir(s.id, true); });
+  formes.carte.push(f);
+  formes.aerienne.push(L.polygon(p, { color: '#A01040', weight: 2.5, fill: false }).addTo(aerienne));
+  formes.cadastre.push(L.polygon(p, { color: '#A01040', weight: 2, fillColor: '#A01040', fillOpacity: 0.2 }).addTo(cadastre));
+});
+
+/* ---------- Synchronisation des trois vues, avec cadenas ---------- */
+var fige = { aerienne: false, cadastre: false };
+var petites = { aerienne: aerienne, cadastre: cadastre };
+function synchroniser() {
+  var c = carte.getCenter(), z = carte.getZoom();
+  Object.keys(petites).forEach(function (k) { if (!fige[k]) petites[k].setView(c, z, { animate: false }); });
+}
+carte.on('move zoom', synchroniser);
+
+var ICONE_OUVERT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 7.5-2"/></svg>';
+var ICONE_FERME = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>';
+document.querySelectorAll('.cadenas').forEach(function (b) {
+  b.innerHTML = ICONE_OUVERT;
+  b.addEventListener('click', function () {
+    var k = b.getAttribute('data-vue');
+    fige[k] = !fige[k];
+    b.classList.toggle('ferme', fige[k]);
+    b.innerHTML = fige[k] ? ICONE_FERME : ICONE_OUVERT;
+    b.setAttribute('aria-label', (fige[k] ? 'Libérer ' : 'Figer ') + (k === 'aerienne' ? 'la vue aérienne' : 'le cadastre'));
+    var m = petites[k];
+    [m.dragging, m.scrollWheelZoom, m.touchZoom].forEach(function (h) { fige[k] ? h.enable() : h.disable(); });
+    if (!fige[k]) synchroniser();
+    annoncer(fige[k] ? 'Vue figée : elle ne suit plus le plan.' : 'Vue liée au plan.');
+  });
+});
+
+/* ---------- Bandeau de chiffres clés ---------- */
+var regions = Array.from(new Set(SITES.map(function (s) { return s.region; }))).sort();
+var communes = Array.from(new Set(SITES.map(function (s) { return s.commune; }))).sort(function (a, b) { return a.localeCompare(b, 'fr'); });
+document.getElementById('chiffres').innerHTML =
+  '<span class="chiffre"><strong>' + SITES.length + '</strong> sites</span>' +
+  '<span class="chiffre"><strong>' + communes.length + '</strong> communes</span>' +
+  '<span class="chiffre"><strong>' + regions.length + '</strong> régions</span>' +
+  '<span class="chiffre">Mis à jour <strong>' + MISE_A_JOUR + '</strong></span>';
+
+/* ---------- Liste par commune, recherche et filtre par région ---------- */
+var selRegion = document.getElementById('region');
+selRegion.innerHTML = '<option value="">Toutes les régions</option>' + regions.map(function (r) { return '<option>' + r + '</option>'; }).join('');
+var champ = document.getElementById('recherche');
+var elListe = document.getElementById('liste');
+var visibles = SITES.slice();
+var courant = null;
+
+function sansAccent(t) { return t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase(); }
+
+function construireListe() {
+  var q = sansAccent(champ.value.trim()), r = selRegion.value;
+  visibles = SITES.filter(function (s) {
+    return (!r || s.region === r) && (!q || sansAccent(s.commune + ' ' + s.rue).indexOf(q) !== -1);
+  }).sort(function (a, b) { return a.commune.localeCompare(b.commune, 'fr') || a.rue.localeCompare(b.rue, 'fr'); });
+  if (!visibles.length) { elListe.innerHTML = '<p class="vide">Aucun site ne correspond. Essayez une autre commune ou une autre rue.</p>'; return; }
+  var html = '', derniere = '';
+  visibles.forEach(function (s) {
+    if (s.commune !== derniere) {
+      var n = visibles.filter(function (x) { return x.commune === s.commune; }).length;
+      html += '<div class="commune">' + s.commune + '<small>' + n + (n > 1 ? ' sites' : ' site') + '</small></div>';
+      derniere = s.commune;
+    }
+    html += '<button type="button" class="rue' + (courant === s.id ? ' actif' : '') + '" data-id="' + s.id + '">' + s.rue + '</button>';
+  });
+  elListe.innerHTML = html;
+}
+elListe.addEventListener('click', function (e) {
+  var b = e.target.closest('.rue');
+  if (b) choisir(+b.getAttribute('data-id'), true);
+});
+champ.addEventListener('input', construireListe);
+selRegion.addEventListener('change', function () {
+  construireListe();
+  if (visibles.length) carte.fitBounds(L.latLngBounds(visibles.map(function (s) { return [s.lat, s.lng]; })).pad(0.2));
+});
+
+/* ---------- Fiche du site ---------- */
+var IC_DOC = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 3H6v18h12V7z"/><path d="M14 3v4h4M9 13h6M9 17h6"/></svg>';
+var IC_PLAN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3z"/><path d="M9 3v15M15 6v15"/></svg>';
+var IC_DL = '<svg class="dl" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>';
+
+function afficherFiche(s) {
+  var a = AVOCATS[s.region];
+  var i = visibles.findIndex(function (x) { return x.id === s.id; });
+  document.getElementById('fiche').innerHTML =
+    '<h2>' + s.commune + '</h2>' +
+    '<p class="adr">' + s.rue + ', ' + s.cp + ' ' + s.commune + '</p>' +
+    '<div class="nav-site">' +
+      '<button type="button" data-nav="-1"' + (i <= 0 ? ' disabled' : '') + '>Site précédent</button>' +
+      '<button type="button" data-nav="1"' + (i < 0 || i >= visibles.length - 1 ? ' disabled' : '') + '>Site suivant</button>' +
+    '</div>' +
+    '<div class="bloc"><h3>Le bien</h3>' +
+      '<div class="ligne"><span>Nature</span><span>' + s.nature + '</span></div>' +
+      '<div class="ligne"><span>Parcelles</span><span>' + s.parcelles.join(', ') + '</span></div>' +
+      '<div class="ligne"><span>Surface cadastrale</span><span>' + s.surface + '</span></div>' +
+      '<div class="ligne"><span>Région</span><span>' + s.region + '</span></div>' +
+    '</div>' +
+    '<div class="bloc"><h3>Documents</h3>' +
+      '<button type="button" class="doc" data-doc>' + IC_DOC + 'Titre de propriété' + IC_DL + '</button>' +
+      '<button type="button" class="doc" data-doc>' + IC_PLAN + 'Plan cadastral colorisé' + IC_DL + '</button>' +
+      '<button type="button" class="doc" data-doc>' + IC_DOC + 'Bail en cours' + IC_DL + '</button>' +
+    '</div>' +
+    '<div class="bloc"><h3>Vos interlocuteurs</h3>' +
+      '<div class="interloc"><strong>' + NOTAIRE.nom + '</strong>' + NOTAIRE.role + '</div>' +
+      '<div class="interloc"><strong>' + a.nom + '</strong>' + a.bureau + ', pour les sites de la région</div>' +
+    '</div>' +
+    '<button type="button" class="achat" id="btnAchat">Un projet d’achat ? Parlons-en</button>';
+}
+document.getElementById('fiche').addEventListener('click', function (e) {
+  var n = e.target.closest('[data-nav]');
+  if (n && !n.disabled) {
+    var i = visibles.findIndex(function (x) { return x.id === courant; }) + (+n.getAttribute('data-nav'));
+    if (visibles[i]) choisir(visibles[i].id, true);
+    return;
+  }
+  if (e.target.closest('[data-doc]')) { annoncer('Maquette : aucun document réel. Le téléchargement sécurisé viendra avec la version définitive.'); return; }
+  if (e.target.closest('#btnAchat')) ouvrirContact();
+});
+
+/* ---------- Sélection d’un site ---------- */
+function choisir(id, centrer) {
+  courant = id;
+  var s = SITES[id];
+  formes.carte.forEach(function (f, k) { f.setStyle(k === id ? { weight: 4, fillOpacity: 0.65 } : { weight: 2, fillOpacity: 0.45 }); });
+  if (centrer) carte.flyTo([s.lat, s.lng], 17, { duration: 0.8 });
+  construireListe();
+  afficherFiche(s);
+  var b = elListe.querySelector('.rue[data-id="' + id + '"]');
+  if (b) b.scrollIntoView({ block: 'nearest' });
+  if (document.body.classList.contains('visite')) afficherBandeauVisite();
+}
+
+/* ---------- Plein écran de la carte (comme REDPAR) ---------- */
+var zone = document.getElementById('zoneCarte');
+document.getElementById('btnPlein').addEventListener('click', function () {
+  if (document.fullscreenElement) document.exitFullscreen();
+  else if (zone.requestFullscreen) zone.requestFullscreen();
+  else annoncer('Ce navigateur ne permet pas le plein écran.');
+});
+document.addEventListener('fullscreenchange', function () {
+  document.getElementById('txtPlein').textContent = document.fullscreenElement ? 'Quitter le plein écran' : 'Plein écran';
+  setTimeout(function () { carte.invalidateSize(); }, 150);
+});
+
+/* ---------- Mode visite ---------- */
+var selVisite = document.getElementById('visiteCommune');
+selVisite.innerHTML = '<option value="">Toutes les communes</option>' + communes.map(function (c) { return '<option>' + c + '</option>'; }).join('');
+var parcours = [], rang = 0;
+
+function preparerParcours() {
+  var c = selVisite.value;
+  parcours = SITES.filter(function (s) { return !c || s.commune === c; })
+    .sort(function (a, b) { return a.commune.localeCompare(b.commune, 'fr') || a.rue.localeCompare(b.rue, 'fr'); });
+  rang = 0;
+  allerVisite();
+}
+function allerVisite() {
+  if (!parcours.length) return;
+  var s = parcours[rang];
+  courant = s.id;
+  formes.carte.forEach(function (f, k) { f.setStyle(k === s.id ? { weight: 4, fillOpacity: 0.65 } : { weight: 2, fillOpacity: 0.45 }); });
+  carte.flyTo([s.lat, s.lng], 18, { duration: 1.1 });
+  afficherBandeauVisite();
+}
+function afficherBandeauVisite() {
+  var s = SITES[courant];
+  document.getElementById('bandeauVisite').innerHTML =
+    '<span class="rang">' + (rang + 1) + ' sur ' + parcours.length + '</span>' +
+    '<div><h2>' + s.commune + '</h2><p>' + s.rue + ' · ' + s.nature + ' · ' + s.surface + '</p></div>' +
+    '<div class="liens"><span>Titre</span><span>Plan</span><span>Bail</span></div>';
+}
+function entrerVisite() {
+  document.body.classList.add('visite');
+  if (courant !== null) selVisite.value = SITES[courant].commune;
+  setTimeout(function () { carte.invalidateSize(); preparerParcours(); }, 60);
+}
+function quitterVisite() {
+  document.body.classList.remove('visite');
+  setTimeout(function () { carte.invalidateSize(); aerienne.invalidateSize(); cadastre.invalidateSize(); choisir(courant, false); }, 60);
+}
+document.getElementById('btnVisite').addEventListener('click', function () {
+  document.body.classList.contains('visite') ? quitterVisite() : entrerVisite();
+});
+document.getElementById('quitterVisite').addEventListener('click', quitterVisite);
+selVisite.addEventListener('change', preparerParcours);
+document.getElementById('visitePrec').addEventListener('click', function () { rang = (rang - 1 + parcours.length) % parcours.length; allerVisite(); });
+document.getElementById('visiteSuiv').addEventListener('click', function () { rang = (rang + 1) % parcours.length; allerVisite(); });
+document.addEventListener('keydown', function (e) {
+  if (e.key === 'Escape') { fermerContact(); if (document.body.classList.contains('visite')) quitterVisite(); }
+  if (!document.body.classList.contains('visite') || /INPUT|SELECT/.test(document.activeElement.tagName)) return;
+  if (e.key === 'ArrowRight') document.getElementById('visiteSuiv').click();
+  if (e.key === 'ArrowLeft') document.getElementById('visitePrec').click();
+});
+
+/* ---------- Fenêtre de contact ---------- */
+var voile = document.getElementById('voileContact');
+function ouvrirContact() {
+  var s = courant !== null ? SITES[courant] : null;
+  var html = '<div class="interloc"><strong>' + NOTAIRE.nom + '</strong>' + NOTAIRE.role + '<br><a href="mailto:' + NOTAIRE.courriel + '">' + NOTAIRE.courriel + '</a></div>';
+  if (s) {
+    var a = AVOCATS[s.region];
+    html += '<div class="interloc"><strong>' + a.nom + '</strong>' + a.bureau + ', avocat du secteur de ' + s.commune + '</div>';
+  } else {
+    regions.forEach(function (r) { html += '<div class="interloc"><strong>' + AVOCATS[r].nom + '</strong>' + AVOCATS[r].bureau + ' · ' + r + '</div>'; });
+  }
+  document.getElementById('contenuContact').innerHTML = html;
+  voile.classList.add('ouvert');
+  voile.querySelector('[data-ferme]').focus();
+}
+function fermerContact() { voile.classList.remove('ouvert'); }
+document.getElementById('btnContact').addEventListener('click', ouvrirContact);
+voile.addEventListener('click', function (e) { if (e.target === voile || e.target.hasAttribute('data-ferme')) fermerContact(); });
+
+/* ---------- Message bref ---------- */
+var minuteur;
+function annoncer(t) {
+  var m = document.getElementById('message');
+  m.textContent = t; m.classList.add('vu');
+  clearTimeout(minuteur); minuteur = setTimeout(function () { m.classList.remove('vu'); }, 3200);
+}
+
+/* ---------- Animation d’ouverture : une fois par session ---------- */
+(function () {
+  var intro = document.getElementById('intro');
+  var dejaVue = false;
+  try { dejaVue = sessionStorage.getItem('argos-intro') === '1'; sessionStorage.setItem('argos-intro', '1'); } catch (e) {}
+  var calme = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (dejaVue || calme) { intro.remove(); return; }
+  function finir() { intro.classList.add('part'); setTimeout(function () { intro.remove(); }, 650); }
+  var t = setTimeout(finir, 2900);
+  intro.addEventListener('click', function () { clearTimeout(t); finir(); });
+})();
+
+/* ---------- Démarrage ---------- */
+construireListe();
+carte.fitBounds(L.latLngBounds(SITES.map(function (s) { return [s.lat, s.lng]; })).pad(0.15));
+synchroniser();
+choisir(visibles[0].id, false);
+</script>
+</body>
+</html>
