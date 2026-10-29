@@ -77,7 +77,7 @@ button{font:inherit;cursor:pointer}
 .fond-gris{filter:grayscale(1) contrast(.85) brightness(1.12);opacity:.5}
 .leaflet-tooltip.etiq-zone{background:rgba(255,255,255,.88);border:0;box-shadow:none;color:#1B2430;font-weight:700;font-size:12px;padding:1px 5px;border-radius:3px}
 .leaflet-tooltip.etiq-zone::before{display:none}
-.legende{position:absolute;right:6px;bottom:8px;z-index:500;background:rgba(255,255,255,.92);border-radius:4px;padding:3px 6px;font-size:11px;display:flex;gap:7px}
+.legende{position:absolute;right:6px;bottom:8px;z-index:500;background:rgba(255,255,255,.92);border-radius:4px;padding:3px 6px;font-size:11px;display:flex;flex-wrap:wrap;gap:3px 9px;max-width:calc(100% - 12px)}
 .legende i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:3px;vertical-align:-1px}
 .cadenas{position:absolute;right:6px;top:6px;z-index:500;width:30px;height:30px;border-radius:6px;border:1px solid var(--trait);background:#fff;display:grid;place-items:center;color:var(--canard)}
 .cadenas svg{width:16px;height:16px}
@@ -301,7 +301,7 @@ body.visite .visite-ctl{display:block}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/4.7.1/maplibre-gl.min.js"></script>
 <script>
-/* ===================== ARGOS · maquette v0.31 · clients et documents fictifs, parcelles réelles lues au cadastre ===================== */
+/* ===================== ARGOS · maquette v0.32 · clients et documents fictifs, parcelles réelles lues au cadastre ===================== */
 var MISE_A_JOUR = 'octobre 2026';
 
 var NOTAIRE = {
@@ -412,14 +412,60 @@ document.getElementById('basculeEpoque').addEventListener('click', function (e) 
 /* Zonage d'urbanisme : zones lues au Géoportail de l'urbanisme (API Carto) pour l'emprise affichée, coloriées selon leur type */
 var zonesUrba = L.geoJSON(null, {
   style: function (f) {
-    var t = String((f.properties || {}).typezone || '').toUpperCase();
-    var c = t.indexOf('AU') === 0 ? '#F2A33A' : t.charAt(0) === 'U' ? '#E64A4A' : t.charAt(0) === 'A' ? '#F2E35C' : t.charAt(0) === 'N' ? '#56B05A' : '#9AA3AD';
+    var c = couleurZone(f);
     return { color: c, weight: 2, opacity: 0.95, fillColor: c, fillOpacity: 0.55 };
   },
-  onEachFeature: function (f, l) { var p = f.properties || {}; l.bindTooltip(p.libelle || p.typezone || '', { permanent: true, direction: 'center', className: 'etiq-zone' }); }
+  /* au survol : le code et l'intitulé complet de la zone */
+  onEachFeature: function (f, l) { var p = f.properties || {}; l.bindTooltip((p.libelle || p.typezone || '') + (p.libelong ? ' · ' + p.libelong : ''), { sticky: true, className: 'adresse' }); }
 });
+function couleurZone(f) {
+  var t = String((f.properties || {}).typezone || '').toUpperCase();
+  return t.indexOf('AU') === 0 ? '#F2A33A' : t.charAt(0) === 'U' ? '#E64A4A' : t.charAt(0) === 'A' ? '#F2E35C' : t.charAt(0) === 'N' ? '#56B05A' : '#9AA3AD';
+}
+/* ---------- Étiquettes de zonage (v0.32) : chaque zone visible porte son code, posé DANS sa partie visible ;
+   la légende liste les zones réellement affichées, avec leur couleur ---------- */
+var calqueEtiquettes = L.layerGroup();
+function dansAnneaux(x, y, anneaux) {
+  var dedans = false;
+  anneaux.forEach(function (a) {
+    for (var i = 0, j = a.length - 1; i < a.length; j = i++) {
+      if (((a[i][1] > y) !== (a[j][1] > y)) && (x < (a[j][0] - a[i][0]) * (y - a[i][1]) / (a[j][1] - a[i][1]) + a[i][0])) dedans = !dedans;
+    }
+  });
+  return dedans;
+}
+function etiqueterZones() {
+  calqueEtiquettes.clearLayers();
+  var leg = document.getElementById('legendeUrba');
+  if (!cadastre.hasLayer(fondUrba)) return;
+  var v = cadastre.getBounds(), N = 11, marge = 0.08, vues = {};
+  var w = v.getWest(), s = v.getSouth(), dx = v.getEast() - w, dy = v.getNorth() - s;
+  zonesUrba.eachLayer(function (l) {
+    var f = l.feature, g = f && f.geometry; if (!g) return;
+    var polys = g.type === 'MultiPolygon' ? g.coordinates : g.type === 'Polygon' ? [g.coordinates] : [];
+    polys.forEach(function (anneaux) {
+      var pts = [];
+      for (var i = 0; i < N; i++) for (var j = 0; j < N; j++) {
+        var x = w + dx * (marge + (1 - 2 * marge) * i / (N - 1)), y = s + dy * (marge + (1 - 2 * marge) * j / (N - 1));
+        if (dansAnneaux(x, y, anneaux)) pts.push([x, y]);
+      }
+      if (!pts.length) return;
+      var mx = 0, my = 0; pts.forEach(function (p) { mx += p[0]; my += p[1]; }); mx /= pts.length; my /= pts.length;
+      var best = pts[0], d0 = Infinity;
+      pts.forEach(function (p) { var d = (p[0] - mx) * (p[0] - mx) + (p[1] - my) * (p[1] - my); if (d < d0) { d0 = d; best = p; } });
+      var pr = f.properties || {}, code = pr.libelle || pr.typezone || '?';
+      calqueEtiquettes.addLayer(L.tooltip({ permanent: true, direction: 'center', className: 'etiq-zone', interactive: false })
+        .setLatLng([best[1], best[0]]).setContent(code));
+      vues[code] = vues[code] || { couleur: couleurZone(f), nom: pr.libelong || '' };
+    });
+  });
+  var codes = Object.keys(vues).sort(function (a, b) { return a.localeCompare(b, 'fr', { numeric: true }); });
+  leg.innerHTML = codes.length
+    ? codes.map(function (c) { return '<span title="' + (vues[c].nom || c).replace(/"/g, '&quot;') + '"><i style="background:' + vues[c].couleur + '"></i>' + c + '</span>'; }).join('')
+    : '<span>Zonage en cours de lecture…</span>';
+}
 var planGris = couche('GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2', 'image/png'); planGris.options.className = 'fond-gris';
-var fondUrba = L.layerGroup([planGris, zonesUrba]);
+var fondUrba = L.layerGroup([planGris, zonesUrba, calqueEtiquettes]);
 /* Servitudes d'utilité publique : assiettes lues au Géoportail de l'urbanisme (API Carto), coloriées par famille */
 function couleurSup(t) {
   t = String(t || '').toLowerCase();
@@ -468,9 +514,11 @@ function chargerZones() {
     var couche = urba ? zonesUrba : zonesSup;
     couche.clearLayers(); couche.addData({ type: 'FeatureCollection', features: fs });
     formes.cadastre.forEach(function (f) { f.bringToFront(); });
+    if (urba) etiqueterZones();
   }).catch(function () { cleZones = ''; });
 }
 var cadastre = petiteCarte('vueCadastre', fondUrba);
+cadastre.on('moveend', function () { clearTimeout(window.minuteurEtiq); window.minuteurEtiq = setTimeout(etiqueterZones, 120); });
 cadastre.on('moveend', function () { clearTimeout(minuteurZones); minuteurZones = setTimeout(chargerZones, 400); });
 function changerTheme(t) {
   var urba = t === 'urba';
