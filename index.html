@@ -121,6 +121,8 @@ button{font:inherit;cursor:pointer}
 .carte-contact strong{display:block;color:var(--nuit)}
 .carte-contact a{color:var(--canard)}
 .code-site{font-size:11px;color:var(--doux)}
+.contenu-bloc>.code-site{margin-top:10px}
+.carte-contact .domaine{display:block;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--carmin);margin-bottom:1px}
 .pied{margin-top:auto;padding-top:24px;font-size:12px;text-align:right}
 .pied a{color:var(--doux);text-decoration:none;border-bottom:1px dotted var(--doux)}
 .pied a:hover{color:var(--canard);border-bottom-color:var(--canard)}
@@ -304,7 +306,6 @@ body.visite .visite-ctl{display:block}
       <div class="legende" id="legendeSup" style="display:none"><span><i style="background:#7B4FC9"></i>Patrimoine</span><span><i style="background:#FF982D"></i>Énergie</span><span><i style="background:#2F7FD8"></i>Réseaux</span><span><i style="background:#56B05A"></i>Eau</span><span><i style="background:#8A939D"></i>Autres</span></div>
       <button class="cadenas" type="button" data-vue="cadastre" aria-label="Figer la seconde vue" title="Figer la vue"></button>
     </div>
-    <p class="aide-ins">Ces deux vues suivent le plan. Le cadenas les fige sur l’endroit affiché. La vue aérienne remonte aux années 1950 ; la seconde vue bascule entre le zonage d’urbanisme et les servitudes d’utilité publique.</p>
   </div>
 
 </main>
@@ -321,7 +322,7 @@ body.visite .visite-ctl{display:block}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/4.7.1/maplibre-gl.min.js"></script>
 <script>
-/* ===================== ARGOS · maquette v0.29 · clients et documents fictifs, parcelles réelles lues au cadastre ===================== */
+/* ===================== ARGOS · maquette v0.30 · clients et documents fictifs, parcelles réelles lues au cadastre ===================== */
 var MISE_A_JOUR = 'octobre 2026';
 
 var NOTAIRE = {
@@ -594,9 +595,7 @@ var communes = Array.from(new Set(SITES.map(function (s) { return s.commune; }))
 document.getElementById('resume').innerHTML =
   '<div><strong>' + SITES.length + '</strong>sites</div>' +
   '<div><strong>' + communes.length + '</strong>communes</div>' +
-  '<div><strong>' + regions.length + '</strong>régions</div>' +
-  '<div><strong>' + new Set(SITES.map(function (s) { return s.region + '|' + s.commune + '|' + s.cp; })).size + '</strong>codes postaux</div>' +
-  '<div class="large">Mis à jour en ' + MISE_A_JOUR + '</div>';
+  '<div class="large">Dernière mise à jour : ' + MISE_A_JOUR + '</div>';
 
 /* ---------- Liste par commune, recherche et filtre par région ---------- */
 var selRegion = document.getElementById('region');
@@ -700,11 +699,8 @@ function afficherFiche(s) {
       }).join('') +
     '</div></div>' +
     '<div class="bloc">' + titreBloc('assist', 'Une question ou un besoin d’assistance sur ce site ?') + (etatBlocs.assist ? '<div class="contenu-bloc">' : '<div class="contenu-bloc" hidden>') +
-      '<label class="choix-interv"><span>Intervenant</span><select id="choixIntervenant">' +
-        '<option value="">Choisir l’intervenant…</option>' +
-        DOMAINES.map(function (d) { return '<option value="' + d.cle + '">' + d.titre + '</option>'; }).join('') +
-      '</select></label>' +
-      '<div id="carteContact"></div>' +
+      DOMAINES.map(function (d) { return carteIntervenant(s, d); }).join('') +
+      '<div class="code-site">Référence du site à rappeler : ' + codeSite(s) + '</div>' +
     '</div></div>';
 }
 /* Blocs repliables de la fiche : caractéristiques repliées par défaut, documents dépliés ; le choix est gardé d'un site à l'autre */
@@ -713,13 +709,12 @@ function titreBloc(cle, libelle) {
   return '<button type="button" class="titre-bloc" data-bloc="' + cle + '" aria-expanded="' + etatBlocs[cle] + '">' +
     '<svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 5l7 7-7 7"/></svg>' + libelle + '</button>';
 }
-function montrerContact(s, cle) {
-  var d = DOMAINES.filter(function (x) { return x.cle === cle; })[0];
+/* Chaque intervenant est affiché directement, avec son domaine, son nom et le lien pour écrire au sujet du site */
+function carteIntervenant(s, d) {
   var objet = encodeURIComponent('ARGOS · ' + codeSite(s) + ' · ' + s.commune + ', ' + s.rue + ' · ' + d.titre);
-  var html = d.cle === 'notaire'
+  return '<div class="carte-contact"><span class="domaine">' + d.titre + '</span>' + (d.cle === 'notaire'
     ? '<strong>' + NOTAIRE.nom + '</strong>' + NOTAIRE.role + '<br><a href="mailto:' + NOTAIRE.courriel + '?subject=' + objet + '">Écrire au sujet de ce site</a>'
-    : '<strong>' + d.avocat + '</strong>' + AVOCATS[s.region].bureau + '<br><a href="#" data-avocat>Écrire au sujet de ce site</a>';
-  document.getElementById('carteContact').innerHTML = '<div class="carte-contact">' + html + '<div class="code-site">Référence du site : ' + codeSite(s) + '</div></div>';
+    : '<strong>' + d.avocat + '</strong>' + AVOCATS[s.region].bureau + '<br><a href="#" data-avocat>Écrire au sujet de ce site</a>') + '</div>';
 }
 document.getElementById('fiche').addEventListener('click', function (e) {
   var n = e.target.closest('[data-nav]');
@@ -761,13 +756,6 @@ function afficherAccueil() {
 document.getElementById('fiche').addEventListener('click', function (e) {
   if (!e.target.closest('#voirTout')) return;
   cadrerEnsemble(true);
-});
-
-/* Menu déroulant des intervenants : la carte de contact du domaine choisi s'affiche dessous */
-document.getElementById('fiche').addEventListener('change', function (e) {
-  if (e.target.id !== 'choixIntervenant' || courant === null) return;
-  if (e.target.value) montrerContact(SITES[courant], e.target.value);
-  else document.getElementById('carteContact').innerHTML = '';
 });
 
 /* ---------- Sélection d’un site ---------- */
