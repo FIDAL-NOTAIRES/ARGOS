@@ -32,7 +32,7 @@ button{font:inherit;cursor:pointer}
 .btn-tete{background:transparent;color:#fff;border:1px solid rgba(255,255,255,.35);border-radius:6px;padding:6px 12px;font-size:13px;display:inline-flex;align-items:center;gap:6px}
 .btn-tete:hover{background:rgba(255,255,255,.1)}
 .btn-tete svg{width:16px;height:16px}
-.corps{display:grid;grid-template-columns:260px minmax(0,1fr) 210px 310px;height:calc(100% - var(--tete) - env(safe-area-inset-top,0px))}
+.corps{display:grid;grid-template-columns:240px minmax(0,1fr) 320px 290px;height:calc(100% - var(--tete) - env(safe-area-inset-top,0px))}
 .liste{background:var(--blanc);border-right:1px solid var(--trait);display:flex;flex-direction:column;min-height:0}
 .outils{padding:12px;display:flex;flex-direction:column;gap:8px;border-bottom:1px solid var(--trait)}
 .outils input,.outils select{height:34px;border:1px solid var(--trait);border-radius:6px;padding:0 10px;font:inherit;font-size:13px;background:#fff;color:var(--texte)}
@@ -52,7 +52,7 @@ button{font:inherit;cursor:pointer}
 .btn-carte svg{width:16px;height:16px}
 #btnPlein{top:12px;right:12px}
 .incrustations{background:var(--blanc);border-right:1px solid var(--trait);padding:12px;display:flex;flex-direction:column;gap:12px;min-height:0}
-.ins{position:relative;flex:1;min-height:150px;border:1px solid var(--trait);border-radius:8px;overflow:hidden}
+.ins{position:relative;flex:1;min-height:180px;border:1px solid var(--trait);border-radius:8px;overflow:hidden}
 .ins .vue{position:absolute;inset:0;background:#E8ECEF}
 .ins .nom{position:absolute;left:8px;bottom:8px;z-index:500;background:rgba(15,34,56,.82);color:#fff;font-size:12px;border-radius:4px;padding:2px 8px}
 .cadenas{position:absolute;right:6px;top:6px;z-index:500;width:30px;height:30px;border-radius:6px;border:1px solid var(--trait);background:#fff;display:grid;place-items:center;color:var(--canard)}
@@ -225,7 +225,7 @@ body.visite .visite-ctl{display:block}
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script>
-/* ===================== ARGOS · maquette v0.1 · données fictives ===================== */
+/* ===================== ARGOS · maquette v0.2 · clients et documents fictifs, parcelles réelles lues au cadastre ===================== */
 var MISE_A_JOUR = 'octobre 2026';
 
 var NOTAIRE = {
@@ -244,18 +244,18 @@ var AVOCATS = {
 
 /* Sites fictifs : adresses, parcelles et surfaces inventées */
 var SITES = [
-  { commune: 'Lille', cp: '59000', region: 'Hauts-de-France', rue: '12 rue de l’Industrie', lat: 50.6198, lng: 3.0712, parcelles: ['AB 112', 'AB 113'], surface: '4 820 m²', nature: 'Entrepôt' },
-  { commune: 'Lille', cp: '59160', region: 'Hauts-de-France', rue: '3 avenue de la Gare', lat: 50.6430, lng: 2.9890, parcelles: ['CK 45'], surface: '2 150 m²', nature: 'Bureaux' },
-  { commune: 'Amiens', cp: '80000', region: 'Hauts-de-France', rue: '8 rue des Tanneurs', lat: 49.8890, lng: 2.3150, parcelles: ['DS 210'], surface: '6 300 m²', nature: 'Atelier' },
-  { commune: 'Amiens', cp: '80080', region: 'Hauts-de-France', rue: '41 boulevard Nord', lat: 49.9050, lng: 2.2650, parcelles: ['ZB 17', 'ZB 18'], surface: '11 900 m²', nature: 'Plateforme logistique' },
-  { commune: 'Arras', cp: '62000', region: 'Hauts-de-France', rue: '5 rue du Commerce', lat: 50.2900, lng: 2.7900, parcelles: ['AE 301'], surface: '1 740 m²', nature: 'Local commercial' },
-  { commune: 'Rouen', cp: '76000', region: 'Normandie', rue: '22 quai du Port', lat: 49.4300, lng: 1.0700, parcelles: ['LS 88'], surface: '3 260 m²', nature: 'Entrepôt' },
-  { commune: 'Rouen', cp: '76100', region: 'Normandie', rue: '14 rue de la Forge', lat: 49.4480, lng: 1.1100, parcelles: ['BT 9', 'BT 10'], surface: '5 410 m²', nature: 'Atelier' },
-  { commune: 'Le Havre', cp: '76600', region: 'Normandie', rue: '2 route du Môle', lat: 49.4870, lng: 0.1450, parcelles: ['HX 402'], surface: '9 780 m²', nature: 'Plateforme logistique' },
-  { commune: 'Caen', cp: '14000', region: 'Normandie', rue: '7 place des Halles', lat: 49.1900, lng: -0.3500, parcelles: ['BD 7'], surface: '1 120 m²', nature: 'Bureaux' },
-  { commune: 'Nanterre', cp: '92000', region: 'Île-de-France', rue: '30 avenue des Champs Fleuris', lat: 48.8950, lng: 2.2100, parcelles: ['AL 56'], surface: '2 640 m²', nature: 'Bureaux' },
-  { commune: 'Rennes', cp: '35000', region: 'Bretagne', rue: '19 rue de la Mine', lat: 48.0950, lng: -1.6500, parcelles: ['KP 23'], surface: '4 090 m²', nature: 'Entrepôt' },
-  { commune: 'Brest', cp: '29200', region: 'Bretagne', rue: '4 rue du Bassin', lat: 48.4000, lng: -4.4700, parcelles: ['EW 131'], surface: '3 380 m²', nature: 'Atelier' }
+  { commune: 'Lille', cp: '59000', region: 'Hauts-de-France', rue: 'Port de Lille, quai de l’Industrie', lat: 50.6268, lng: 3.0395, nature: 'Entrepôt' },
+  { commune: 'Lesquin', cp: '59810', region: 'Hauts-de-France', rue: 'Zone d’activité, rue de la Logistique', lat: 50.5835, lng: 3.1245, nature: 'Plateforme logistique' },
+  { commune: 'Amiens', cp: '80080', region: 'Hauts-de-France', rue: 'Zone industrielle Nord, rue des Tanneurs', lat: 49.9280, lng: 2.2995, nature: 'Atelier' },
+  { commune: 'Amiens', cp: '80080', region: 'Hauts-de-France', rue: 'Zone industrielle Nord, boulevard Nord', lat: 49.9245, lng: 2.3080, nature: 'Plateforme logistique' },
+  { commune: 'Arras', cp: '62000', region: 'Hauts-de-France', rue: 'Zone industrielle Est, rue du Commerce', lat: 50.2865, lng: 2.8195, nature: 'Local d’activité' },
+  { commune: 'Rouen', cp: '76100', region: 'Normandie', rue: 'Port de Rouen, quai de France', lat: 49.4255, lng: 1.0545, nature: 'Entrepôt' },
+  { commune: 'Grand-Quevilly', cp: '76120', region: 'Normandie', rue: 'Zone portuaire, rue de la Forge', lat: 49.4130, lng: 1.0390, nature: 'Atelier' },
+  { commune: 'Le Havre', cp: '76600', region: 'Normandie', rue: 'Zone portuaire, route du Môle', lat: 49.4650, lng: 0.1650, nature: 'Plateforme logistique' },
+  { commune: 'Mondeville', cp: '14120', region: 'Normandie', rue: 'Zone d’activité, rue des Halles', lat: 49.1755, lng: -0.3215, nature: 'Entrepôt' },
+  { commune: 'Gennevilliers', cp: '92230', region: 'Île-de-France', rue: 'Port de Gennevilliers, route du Bassin', lat: 48.9350, lng: 2.2900, nature: 'Entrepôt' },
+  { commune: 'Rennes', cp: '35000', region: 'Bretagne', rue: 'Zone industrielle Sud-Est, rue de la Mine', lat: 48.0950, lng: -1.6200, nature: 'Atelier' },
+  { commune: 'Brest', cp: '29200', region: 'Bretagne', rue: 'Port de commerce, rue du Bassin', lat: 48.3835, lng: -4.4750, nature: 'Entrepôt' }
 ];
 SITES.forEach(function (s, i) { s.id = i; });
 
@@ -286,15 +286,19 @@ function contour(s) {
   var dy = 0.00055, dx = 0.0008, k = (s.id % 3) * 0.00012;
   return [[s.lat - dy, s.lng - dx + k], [s.lat - dy + k, s.lng + dx], [s.lat + dy, s.lng + dx - k], [s.lat + dy - k, s.lng - dx]];
 }
+var STYLE_NORMAL = { color: '#6E0A2C', weight: 2.5, fillColor: '#A01040', fillOpacity: 0.72 };
+var STYLE_ACTIF = { color: '#4A061D', weight: 4, fillColor: '#A01040', fillOpacity: 0.88 };
+var STYLE_AERIEN = { color: '#E0336B', weight: 3, fill: false };
+var STYLE_CADASTRE = { color: '#A01040', weight: 2.5, fillColor: '#A01040', fillOpacity: 0.35 };
 var formes = { carte: [], aerienne: [], cadastre: [] };
 SITES.forEach(function (s) {
   var p = contour(s);
-  var f = L.polygon(p, { color: '#A01040', weight: 2, fillColor: '#A01040', fillOpacity: 0.45 }).addTo(carte);
+  var f = L.polygon(p, STYLE_NORMAL).addTo(carte);
   f.bindTooltip(s.rue + ', ' + s.cp + ' ' + s.commune, { className: 'adresse', direction: 'top', sticky: true });
   f.on('click', function () { choisir(s.id, true); });
   formes.carte.push(f);
-  formes.aerienne.push(L.polygon(p, { color: '#A01040', weight: 2.5, fill: false }).addTo(aerienne));
-  formes.cadastre.push(L.polygon(p, { color: '#A01040', weight: 2, fillColor: '#A01040', fillOpacity: 0.2 }).addTo(cadastre));
+  formes.aerienne.push(L.polygon(p, STYLE_AERIEN).addTo(aerienne));
+  formes.cadastre.push(L.polygon(p, STYLE_CADASTRE).addTo(cadastre));
 });
 
 /* ---------- Synchronisation des trois vues, avec cadenas ---------- */
@@ -386,8 +390,8 @@ function afficherFiche(s) {
     '</div>' +
     '<div class="bloc"><h3>Le bien</h3>' +
       '<div class="ligne"><span>Nature</span><span>' + s.nature + '</span></div>' +
-      '<div class="ligne"><span>Parcelles</span><span>' + s.parcelles.join(', ') + '</span></div>' +
-      '<div class="ligne"><span>Surface cadastrale</span><span>' + s.surface + '</span></div>' +
+      '<div class="ligne"><span>Parcelles</span><span>' + (s.parcelles ? s.parcelles.join(', ') : 'lecture du cadastre…') + '</span></div>' +
+      '<div class="ligne"><span>Surface cadastrale</span><span>' + (s.surface || '…') + '</span></div>' +
       '<div class="ligne"><span>Région</span><span>' + s.region + '</span></div>' +
     '</div>' +
     '<div class="bloc"><h3>Documents</h3>' +
@@ -416,7 +420,7 @@ document.getElementById('fiche').addEventListener('click', function (e) {
 function choisir(id, centrer) {
   courant = id;
   var s = SITES[id];
-  formes.carte.forEach(function (f, k) { f.setStyle(k === id ? { weight: 4, fillOpacity: 0.65 } : { weight: 2, fillOpacity: 0.45 }); });
+  formes.carte.forEach(function (f, k) { f.setStyle(k === id ? STYLE_ACTIF : STYLE_NORMAL); });
   if (centrer) carte.flyTo([s.lat, s.lng], 17, { duration: 0.8 });
   construireListe();
   afficherFiche(s);
@@ -453,7 +457,7 @@ function allerVisite() {
   if (!parcours.length) return;
   var s = parcours[rang];
   courant = s.id;
-  formes.carte.forEach(function (f, k) { f.setStyle(k === s.id ? { weight: 4, fillOpacity: 0.65 } : { weight: 2, fillOpacity: 0.45 }); });
+  formes.carte.forEach(function (f, k) { f.setStyle(k === s.id ? STYLE_ACTIF : STYLE_NORMAL); });
   carte.flyTo([s.lat, s.lng], 18, { duration: 1.1 });
   afficherBandeauVisite();
 }
@@ -461,7 +465,7 @@ function afficherBandeauVisite() {
   var s = SITES[courant];
   document.getElementById('bandeauVisite').innerHTML =
     '<span class="rang">' + (rang + 1) + ' sur ' + parcours.length + '</span>' +
-    '<div><h2>' + s.commune + '</h2><p>' + s.rue + ' · ' + s.nature + ' · ' + s.surface + '</p></div>' +
+    '<div><h2>' + s.commune + '</h2><p>' + s.rue + ' · ' + s.nature + (s.surface ? ' · ' + s.surface : '') + '</p></div>' +
     '<div class="liens"><span>Titre</span><span>Plan</span><span>Bail</span></div>';
 }
 function entrerVisite() {
@@ -526,11 +530,36 @@ function annoncer(t) {
   intro.addEventListener('click', function () { clearTimeout(t); finir(); });
 })();
 
+/* ---------- Vraies parcelles : contour lu au cadastre (API Carto IGN, gratuite) ---------- */
+function lireParcelle(s) {
+  if (!window.fetch) return;
+  var geom = encodeURIComponent(JSON.stringify({ type: 'Point', coordinates: [s.lng, s.lat] }));
+  return fetch('https://apicarto.ign.fr/api/cadastre/parcelle?geom=' + geom)
+    .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+    .then(function (g) {
+      var f = g.features && g.features[0];
+      if (!f) throw new Error('aucune parcelle');
+      var pr = f.properties || {};
+      s.parcelles = [(pr.section || '') + ' ' + String(pr.numero || '').replace(/^0+/, '')];
+      if (pr.contenance) s.surface = Number(pr.contenance).toLocaleString('fr-FR') + ' m²';
+      var anneaux = f.geometry.type === 'MultiPolygon' ? f.geometry.coordinates : [f.geometry.coordinates];
+      var ll = anneaux.map(function (poly) { return poly.map(function (an) { return an.map(function (c) { return [c[1], c[0]]; }); }); });
+      formes.carte[s.id].setLatLngs(ll);
+      formes.aerienne[s.id].setLatLngs(ll);
+      formes.cadastre[s.id].setLatLngs(ll);
+    })
+    .catch(function () {
+      if (!s.parcelles) { s.parcelles = ['non lue']; s.surface = '—'; }
+    })
+    .then(function () { if (courant === s.id) afficherFiche(s); });
+}
+
 /* ---------- Démarrage ---------- */
 construireListe();
 carte.fitBounds(L.latLngBounds(SITES.map(function (s) { return [s.lat, s.lng]; })).pad(0.15));
 synchroniser();
 choisir(visibles[0].id, false);
+SITES.forEach(lireParcelle);
 </script>
 </body>
 </html>
