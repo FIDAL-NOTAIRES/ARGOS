@@ -321,7 +321,7 @@ body.visite .visite-ctl{display:block}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/4.7.1/maplibre-gl.min.js"></script>
 <script>
-/* ===================== ARGOS · maquette v0.28 · clients et documents fictifs, parcelles réelles lues au cadastre ===================== */
+/* ===================== ARGOS · maquette v0.29 · clients et documents fictifs, parcelles réelles lues au cadastre ===================== */
 var MISE_A_JOUR = 'octobre 2026';
 
 var NOTAIRE = {
@@ -740,10 +740,12 @@ document.getElementById('fiche').addEventListener('click', function (e) {
   if (e.target.closest('[data-avocat]')) { e.preventDefault(); annoncer('Maquette : les coordonnées de l’avocat seront chargées dans l’administration.'); }
 });
 
-/* ---------- Vue d'accueil : aucun site choisi, carte centrée sur Notre-Dame de Paris ---------- */
-var ACCUEIL = { nom: 'Notre-Dame de Paris', lat: 48.85296, lng: 2.34991, zoom: 17 };
-var repereAccueil = L.tooltip({ permanent: true, direction: 'top', offset: [0, -4], className: 'monument' })
-  .setLatLng([ACCUEIL.lat, ACCUEIL.lng]).setContent(ACCUEIL.nom);
+/* ---------- Vue d'accueil : aucun site choisi, carte cadrée au mieux sur l'ensemble du patrimoine (v0.29, remplace Notre-Dame) ---------- */
+function cadrerEnsemble(anime) {
+  var b = L.latLngBounds(SITES.map(function (s) { return [s.lat, s.lng]; }));
+  var opts = { padding: [40, 40], maxZoom: 16 };
+  if (anime) carte.flyToBounds(b, Object.assign({ duration: 1 }, opts)); else carte.fitBounds(b, opts);
+}
 function afficherAccueil() {
   courant = null;
   formes.carte.forEach(function (f) { f.setStyle(STYLE_NORMAL); });
@@ -755,11 +757,10 @@ function afficherAccueil() {
       '<p>Choisissez un site dans la liste ou sur la carte : sa fiche, ses documents et ses vues s’afficheront ici.</p>' +
       '<button type="button" id="voirTout">Voir l’ensemble des sites</button>' +
     '</div>';
-  repereAccueil.addTo(carte);
 }
 document.getElementById('fiche').addEventListener('click', function (e) {
   if (!e.target.closest('#voirTout')) return;
-  carte.flyToBounds(L.latLngBounds(SITES.map(function (s) { return [s.lat, s.lng]; })).pad(0.15), { duration: 1 });
+  cadrerEnsemble(true);
 });
 
 /* Menu déroulant des intervenants : la carte de contact du domaine choisi s'affiche dessous */
@@ -773,7 +774,6 @@ document.getElementById('fiche').addEventListener('change', function (e) {
 function choisir(id, centrer) {
   if (id === null || id === undefined) { afficherAccueil(); return; }
   courant = id;
-  if (carte.hasLayer(repereAccueil)) carte.removeLayer(repereAccueil);
   var s = SITES[id];
   ouverts[s.region] = true; ouverts[cleCom(s)] = true; ouverts['C|' + s.commune] = true;
   formes.carte.forEach(function (f, k) { f.setStyle(k === id ? STYLE_ACTIF : STYLE_NORMAL); });
@@ -1121,7 +1121,7 @@ function lireZonage(s, essai) {
 
 /* ---------- Démarrage ---------- */
 construireListe();
-carte.setView([ACCUEIL.lat, ACCUEIL.lng], ACCUEIL.zoom);
+cadrerEnsemble(false);
 synchroniser();
 afficherAccueil();
 dessinerPastilles();
