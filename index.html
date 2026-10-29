@@ -38,9 +38,16 @@ button{font:inherit;cursor:pointer}
 .outils input,.outils select{height:34px;border:1px solid var(--trait);border-radius:6px;padding:0 10px;font:inherit;font-size:13px;background:#fff;color:var(--texte)}
 .outils input:focus,.outils select:focus{outline:2px solid var(--canard);outline-offset:-1px}
 .defile{overflow-y:auto;flex:1;padding:6px 0 16px}
-.commune{font-family:Georgia,serif;font-size:15px;color:var(--nuit);padding:12px 14px 4px;display:flex;justify-content:space-between;align-items:baseline}
-.commune small{font-family:"Segoe UI",sans-serif;font-size:11px;color:var(--doux)}
-.rue{display:block;width:100%;text-align:left;background:none;border:0;border-left:3px solid transparent;padding:6px 14px 6px 18px;font-size:13px;color:var(--texte)}
+.pli{display:flex;align-items:center;gap:8px;width:100%;background:none;border:0;text-align:left;color:var(--nuit)}
+.pli:hover{background:var(--fond)}
+.pli:focus-visible{outline:2px solid var(--canard);outline-offset:-2px}
+.pli .chev{width:16px;height:16px;flex:none;color:var(--canard);transition:transform .18s ease}
+.pli[aria-expanded="true"] .chev{transform:rotate(90deg)}
+.pli small{margin-left:auto;font-size:11px;color:var(--doux)}
+.pli.reg{font-size:12px;font-weight:600;letter-spacing:.02em;color:var(--canard);padding:10px 14px;border-top:1px solid #EEF0F3}
+.pli.com{font-family:Georgia,serif;font-size:15px;padding:7px 14px 7px 26px}
+.pli.com small{font-family:"Segoe UI",sans-serif}
+.rue{display:block;width:100%;text-align:left;background:none;border:0;border-left:3px solid transparent;padding:6px 14px 6px 50px;font-size:13px;color:var(--texte)}
 .rue:hover{background:var(--fond)}
 .rue.actif{border-left-color:var(--carmin);background:#FBEFF3;color:var(--carmin);font-weight:600}
 .rue:focus-visible{outline:2px solid var(--canard);outline-offset:-2px}
@@ -55,6 +62,11 @@ button{font:inherit;cursor:pointer}
 .ins{position:relative;flex:1;min-height:180px;border:1px solid var(--trait);border-radius:8px;overflow:hidden}
 .ins .vue{position:absolute;inset:0;background:#E8ECEF}
 .ins .nom{position:absolute;left:8px;bottom:8px;z-index:500;background:rgba(15,34,56,.82);color:#fff;font-size:12px;border-radius:4px;padding:2px 8px}
+.bascule{position:absolute;left:6px;top:6px;z-index:500;display:flex;background:#fff;border:1px solid var(--trait);border-radius:6px;overflow:hidden}
+.bascule button{border:0;background:#fff;font-size:12px;padding:5px 9px;color:var(--doux)}
+.bascule button[aria-pressed="true"]{background:var(--nuit);color:#fff}
+.legende{position:absolute;right:6px;bottom:8px;z-index:500;background:rgba(255,255,255,.92);border-radius:4px;padding:3px 6px;font-size:11px;display:flex;gap:7px}
+.legende i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:3px;vertical-align:-1px}
 .cadenas{position:absolute;right:6px;top:6px;z-index:500;width:30px;height:30px;border-radius:6px;border:1px solid var(--trait);background:#fff;display:grid;place-items:center;color:var(--canard)}
 .cadenas svg{width:16px;height:16px}
 .cadenas.ferme{color:var(--carmin);border-color:var(--carmin)}
@@ -205,10 +217,15 @@ body.visite .visite-ctl{display:block}
     </div>
     <div class="ins">
       <div class="vue" id="vueCadastre"></div>
-      <span class="nom">Cadastre</span>
-      <button class="cadenas" type="button" data-vue="cadastre" aria-label="Figer le cadastre" title="Figer la vue"></button>
+      <div class="bascule" role="group" aria-label="Thème de la seconde vue">
+        <button type="button" data-theme="urba" aria-pressed="true">Urbanisme</button>
+        <button type="button" data-theme="cad" aria-pressed="false">Cadastre</button>
+      </div>
+      <span class="nom" id="nomTheme">Zonage d’urbanisme</span>
+      <div class="legende" id="legendeUrba"><span><i style="background:#E64A4A"></i>U</span><span><i style="background:#F2A33A"></i>AU</span><span><i style="background:#F2E35C"></i>A</span><span><i style="background:#56B05A"></i>N</span></div>
+      <button class="cadenas" type="button" data-vue="cadastre" aria-label="Figer la seconde vue" title="Figer la vue"></button>
     </div>
-    <p class="aide-ins">Ces deux vues suivent le plan. Le cadenas les fige sur l’endroit affiché.</p>
+    <p class="aide-ins">Ces deux vues suivent le plan. Le cadenas les fige sur l’endroit affiché. La seconde vue bascule entre le zonage d’urbanisme et le cadastre.</p>
   </div>
 
   <aside class="fiche" id="fiche" aria-label="Fiche du site"></aside>
@@ -225,7 +242,7 @@ body.visite .visite-ctl{display:block}
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script>
-/* ===================== ARGOS · maquette v0.2 · clients et documents fictifs, parcelles réelles lues au cadastre ===================== */
+/* ===================== ARGOS · maquette v0.3 · clients et documents fictifs, parcelles réelles lues au cadastre ===================== */
 var MISE_A_JOUR = 'octobre 2026';
 
 var NOTAIRE = {
@@ -279,7 +296,24 @@ function petiteCarte(id, fond) {
   return m;
 }
 var aerienne = petiteCarte('vueAerienne', couche('ORTHOIMAGERY.ORTHOPHOTOS', 'image/jpeg'));
-var cadastre = petiteCarte('vueCadastre', couche('CADASTRALPARCELS.PARCELLAIRE_EXPRESS', 'image/png', 'PCI vecteur'));
+var fondCadastre = couche('CADASTRALPARCELS.PARCELLAIRE_EXPRESS', 'image/png', 'PCI vecteur');
+var fondUrba = L.layerGroup([
+  couche('GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2', 'image/png'),
+  L.tileLayer.wms('https://data.geopf.fr/wms-v/ows', { layers: 'zone_secteur', format: 'image/png', transparent: true, version: '1.3.0', opacity: 0.75, maxZoom: 19 })
+]);
+var cadastre = petiteCarte('vueCadastre', fondUrba);
+function changerTheme(t) {
+  var urba = t === 'urba';
+  cadastre.removeLayer(urba ? fondCadastre : fondUrba);
+  (urba ? fondUrba : fondCadastre).addTo(cadastre);
+  formes.cadastre.forEach(function (f) { f.bringToFront(); });
+  document.querySelectorAll('.bascule button').forEach(function (b) { b.setAttribute('aria-pressed', String(b.getAttribute('data-theme') === t)); });
+  document.getElementById('nomTheme').textContent = urba ? 'Zonage d’urbanisme' : 'Cadastre';
+  document.getElementById('legendeUrba').style.display = urba ? '' : 'none';
+}
+document.querySelector('.bascule').addEventListener('click', function (e) {
+  var b = e.target.closest('button'); if (b) changerTheme(b.getAttribute('data-theme'));
+});
 
 /* ---------- Parcelles en carmin (polygones fictifs autour du point) ---------- */
 function contour(s) {
@@ -289,7 +323,7 @@ function contour(s) {
 var STYLE_NORMAL = { color: '#6E0A2C', weight: 2.5, fillColor: '#A01040', fillOpacity: 0.72 };
 var STYLE_ACTIF = { color: '#4A061D', weight: 4, fillColor: '#A01040', fillOpacity: 0.88 };
 var STYLE_AERIEN = { color: '#E0336B', weight: 3, fill: false };
-var STYLE_CADASTRE = { color: '#A01040', weight: 2.5, fillColor: '#A01040', fillOpacity: 0.35 };
+var STYLE_CADASTRE = { color: '#A01040', weight: 3, fillColor: '#A01040', fillOpacity: 0.12 };
 var formes = { carte: [], aerienne: [], cadastre: [] };
 SITES.forEach(function (s) {
   var p = contour(s);
@@ -319,7 +353,7 @@ document.querySelectorAll('.cadenas').forEach(function (b) {
     fige[k] = !fige[k];
     b.classList.toggle('ferme', fige[k]);
     b.innerHTML = fige[k] ? ICONE_FERME : ICONE_OUVERT;
-    b.setAttribute('aria-label', (fige[k] ? 'Libérer ' : 'Figer ') + (k === 'aerienne' ? 'la vue aérienne' : 'le cadastre'));
+    b.setAttribute('aria-label', (fige[k] ? 'Libérer ' : 'Figer ') + (k === 'aerienne' ? 'la vue aérienne' : 'la seconde vue'));
     var m = petites[k];
     [m.dragging, m.scrollWheelZoom, m.touchZoom].forEach(function (h) { fige[k] ? h.enable() : h.disable(); });
     if (!fige[k]) synchroniser();
@@ -346,24 +380,37 @@ var courant = null;
 
 function sansAccent(t) { return t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase(); }
 
+var CHEV = '<svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 5l7 7-7 7"/></svg>';
+var ouverts = {};
+function cleCom(s) { return s.region + '|' + s.commune; }
 function construireListe() {
   var q = sansAccent(champ.value.trim()), r = selRegion.value;
   visibles = SITES.filter(function (s) {
     return (!r || s.region === r) && (!q || sansAccent(s.commune + ' ' + s.rue).indexOf(q) !== -1);
-  }).sort(function (a, b) { return a.commune.localeCompare(b.commune, 'fr') || a.rue.localeCompare(b.rue, 'fr'); });
+  }).sort(function (a, b) { return a.region.localeCompare(b.region, 'fr') || a.commune.localeCompare(b.commune, 'fr') || a.rue.localeCompare(b.rue, 'fr'); });
   if (!visibles.length) { elListe.innerHTML = '<p class="vide">Aucun site ne correspond. Essayez une autre commune ou une autre rue.</p>'; return; }
-  var html = '', derniere = '';
-  visibles.forEach(function (s) {
-    if (s.commune !== derniere) {
-      var n = visibles.filter(function (x) { return x.commune === s.commune; }).length;
-      html += '<div class="commune">' + s.commune + '<small>' + n + (n > 1 ? ' sites' : ' site') + '</small></div>';
-      derniere = s.commune;
-    }
-    html += '<button type="button" class="rue' + (courant === s.id ? ' actif' : '') + '" data-id="' + s.id + '">' + s.rue + '</button>';
+  var tout = !!q || !!r;
+  var html = '';
+  Array.from(new Set(visibles.map(function (s) { return s.region; }))).forEach(function (reg) {
+    var deReg = visibles.filter(function (s) { return s.region === reg; });
+    var oR = tout || !!ouverts[reg];
+    html += '<button type="button" class="pli reg" data-pli="' + reg + '" aria-expanded="' + oR + '">' + CHEV + reg + '<small>' + deReg.length + (deReg.length > 1 ? ' sites' : ' site') + '</small></button>';
+    if (!oR) return;
+    Array.from(new Set(deReg.map(function (s) { return s.commune; }))).forEach(function (com) {
+      var deCom = deReg.filter(function (s) { return s.commune === com; });
+      var k = reg + '|' + com, oC = tout || !!ouverts[k];
+      html += '<button type="button" class="pli com" data-pli="' + k + '" aria-expanded="' + oC + '">' + CHEV + com + '<small>' + deCom.length + '</small></button>';
+      if (!oC) return;
+      deCom.forEach(function (s) {
+        html += '<button type="button" class="rue' + (courant === s.id ? ' actif' : '') + '" data-id="' + s.id + '">' + s.rue + '</button>';
+      });
+    });
   });
   elListe.innerHTML = html;
 }
 elListe.addEventListener('click', function (e) {
+  var p = e.target.closest('.pli');
+  if (p) { var k = p.getAttribute('data-pli'); ouverts[k] = p.getAttribute('aria-expanded') !== 'true'; construireListe(); return; }
   var b = e.target.closest('.rue');
   if (b) choisir(+b.getAttribute('data-id'), true);
 });
@@ -392,6 +439,7 @@ function afficherFiche(s) {
       '<div class="ligne"><span>Nature</span><span>' + s.nature + '</span></div>' +
       '<div class="ligne"><span>Parcelles</span><span>' + (s.parcelles ? s.parcelles.join(', ') : 'lecture du cadastre…') + '</span></div>' +
       '<div class="ligne"><span>Surface cadastrale</span><span>' + (s.surface || '…') + '</span></div>' +
+      '<div class="ligne"><span>Zonage d’urbanisme</span><span>' + (s.zonage || '…') + '</span></div>' +
       '<div class="ligne"><span>Région</span><span>' + s.region + '</span></div>' +
     '</div>' +
     '<div class="bloc"><h3>Documents</h3>' +
@@ -420,6 +468,7 @@ document.getElementById('fiche').addEventListener('click', function (e) {
 function choisir(id, centrer) {
   courant = id;
   var s = SITES[id];
+  ouverts[s.region] = true; ouverts[cleCom(s)] = true;
   formes.carte.forEach(function (f, k) { f.setStyle(k === id ? STYLE_ACTIF : STYLE_NORMAL); });
   if (centrer) carte.flyTo([s.lat, s.lng], 17, { duration: 0.8 });
   construireListe();
@@ -553,6 +602,20 @@ function lireParcelle(s) {
     })
     .then(function () { if (courant === s.id) afficherFiche(s); });
 }
+function lireZonage(s) {
+  if (!window.fetch) return;
+  var geom = encodeURIComponent(JSON.stringify({ type: 'Point', coordinates: [s.lng, s.lat] }));
+  fetch('https://apicarto.ign.fr/api/gpu/zone-urba?geom=' + geom)
+    .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+    .then(function (g) {
+      var f = g.features && g.features[0];
+      if (!f) { s.zonage = 'aucun document en ligne'; return; }
+      var p = f.properties || {};
+      s.zonage = (p.libelle || p.typezone || '?') + (p.libelong ? ' · ' + (p.libelong.length > 60 ? p.libelong.slice(0, 58) + '…' : p.libelong) : '');
+    })
+    .catch(function () { s.zonage = 'non lu'; })
+    .then(function () { if (courant === s.id) afficherFiche(s); });
+}
 
 /* ---------- Démarrage ---------- */
 construireListe();
@@ -560,6 +623,7 @@ carte.fitBounds(L.latLngBounds(SITES.map(function (s) { return [s.lat, s.lng]; }
 synchroniser();
 choisir(visibles[0].id, false);
 SITES.forEach(lireParcelle);
+SITES.forEach(lireZonage);
 </script>
 </body>
 </html>
