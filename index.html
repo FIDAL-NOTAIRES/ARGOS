@@ -294,7 +294,7 @@ body.visite .visite-ctl{display:block}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/4.7.1/maplibre-gl.min.js"></script>
 <script>
-/* ===================== ARGOS · maquette v0.17 · clients et documents fictifs, parcelles réelles lues au cadastre ===================== */
+/* ===================== ARGOS · maquette v0.18 · clients et documents fictifs, parcelles réelles lues au cadastre ===================== */
 var MISE_A_JOUR = 'octobre 2026';
 
 var NOTAIRE = {
@@ -725,7 +725,7 @@ function annoncer(t) {
   try {
     carte3d = new maplibregl.Map({
       container: 'introCarte', interactive: false, attributionControl: false, fadeDuration: 0, pixelRatio: Math.max(2, window.devicePixelRatio || 1), maxTileCacheSize: 600,
-      center: [2.3150, 48.8640], zoom: 12.6, pitch: 0, bearing: -25, maxPitch: 40,
+      center: [2.3080, 48.8715], zoom: 15.3, pitch: 0, bearing: -25, maxPitch: 40,
       style: { version: 8, sources: { ortho: { type: 'raster', tileSize: 128, maxzoom: 19,
         tiles: ['https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=ORTHOIMAGERY.ORTHOPHOTOS&STYLE=normal&TILEMATRIXSET=PM&FORMAT=image/jpeg&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}'] } },
         layers: [{ id: 'fond', type: 'background', paint: { 'background-color': '#0F2238' } }, { id: 'ortho', type: 'raster', source: 'ortho', paint: { 'raster-fade-duration': 250, 'raster-contrast': 0.12, 'raster-saturation': 0.1 } }] }
@@ -787,24 +787,83 @@ function annoncer(t) {
     })(debut);
   }
 
+  /* Mosaïque de toutes les parcelles du quartier, lue au cadastre, pour la phase « instable » */
+  var mosaiquePrete = !window.fetch ? Promise.resolve(null) : fetch('https://apicarto.ign.fr/api/cadastre/parcelle?_limit=1000&geom=' + encodeURIComponent(JSON.stringify({
+      type: 'Polygon', coordinates: [[[cLng - 0.0042, cLat - 0.0028], [cLng + 0.0042, cLat - 0.0028], [cLng + 0.0042, cLat + 0.0028], [cLng - 0.0042, cLat + 0.0028], [cLng - 0.0042, cLat - 0.0028]]] })))
+    .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+    .then(function (g) { return { type: 'FeatureCollection', features: (g.features || []).map(function (f, i) { return { type: 'Feature', id: i + 1, properties: {}, geometry: f.geometry }; }) }; })
+    .catch(function () { return null; });
+  var PALETTE = ['#6DD5DC', '#FF982D', '#33838B', '#FFE764', '#E64A4A', '#9B7BE0', '#A01040'];
+  function boite(geom) {
+    var c = geom.coordinates; while (Array.isArray(c[0][0])) c = c[0];
+    var x0 = 180, y0 = 90, x1 = -180, y1 = -90;
+    c.forEach(function (p) { x0 = Math.min(x0, p[0]); x1 = Math.max(x1, p[0]); y0 = Math.min(y0, p[1]); y1 = Math.max(y1, p[1]); });
+    return [x0, y0, x1, y1];
+  }
+  var chaos = null;
+  function lancerChaos(g) {
+    if (!g || !g.features.length || fini) return;
+    var n = g.features.length;
+    carte3d.addSource('mosaique', { type: 'geojson', data: g });
+    carte3d.addLayer({ id: 'mosaique-fond', type: 'fill', source: 'mosaique', paint: {
+      'fill-color': ['coalesce', ['feature-state', 'c'], '#FFFFFF'], 'fill-opacity': ['coalesce', ['feature-state', 'o'], 0],
+      'fill-opacity-transition': { duration: 450 }, 'fill-color-transition': { duration: 450 } } });
+    carte3d.addLayer({ id: 'mosaique-trait', type: 'line', source: 'mosaique', paint: {
+      'line-color': '#FFFFFF', 'line-width': 1, 'line-opacity': ['coalesce', ['feature-state', 'l'], 0.25], 'line-opacity-transition': { duration: 300 } } });
+    carte3d.addSource('coupes', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+    carte3d.addLayer({ id: 'coupes', type: 'line', source: 'coupes', paint: { 'line-color': '#6DD5DC', 'line-width': 2.2, 'line-dasharray': [2, 1.2], 'line-opacity': 0.95 } });
+    var debut = performance.now(), pas = 0;
+    chaos = setInterval(function () {
+      if (fini) { clearInterval(chaos); return; }
+      pas++;
+      var intensite = Math.min(1, (performance.now() - debut) / 2500);
+      var k = Math.round(6 + 26 * intensite);
+      for (var i = 0; i < k; i++) {
+        var id = 1 + Math.floor(Math.random() * n);
+        if (Math.random() < 0.3) carte3d.setFeatureState({ source: 'mosaique', id: id }, { o: 0, l: 0.25 });
+        else carte3d.setFeatureState({ source: 'mosaique', id: id }, { c: PALETTE[Math.floor(Math.random() * PALETTE.length)], o: 0.25 + Math.random() * 0.5, l: 0.9 });
+      }
+      /* redécoupages : des traits de coupe qui traversent des parcelles puis disparaissent */
+      if (pas % 2 === 0) {
+        var coupes = [];
+        for (var j = 0; j < 3 + Math.round(5 * intensite); j++) {
+          var b = boite(g.features[Math.floor(Math.random() * n)].geometry), a = Math.random();
+          coupes.push({ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: a < 0.5
+            ? [[b[0], b[1] + (b[3] - b[1]) * Math.random()], [b[2], b[1] + (b[3] - b[1]) * Math.random()]]
+            : [[b[0] + (b[2] - b[0]) * Math.random(), b[1]], [b[0] + (b[2] - b[0]) * Math.random(), b[3]]] } });
+        }
+        carte3d.getSource('coupes').setData({ type: 'FeatureCollection', features: coupes });
+      }
+    }, 170);
+  }
+  function stabiliser() {
+    if (chaos) clearInterval(chaos);
+    if (!carte3d.getSource('mosaique')) return;
+    carte3d.removeFeatureState({ source: 'mosaique' });
+    carte3d.getSource('coupes').setData({ type: 'FeatureCollection', features: [] });
+    carte3d.setPaintProperty('mosaique-trait', 'line-opacity', 0.18);
+  }
+
   carte3d.on('load', function () {
     if (parti || fini) return; parti = true;
-    /* Descente de drone : vue verticale nette, rotation lente, légère inclinaison en fin de course */
-    carte3d.easeTo({ center: [cLng, cLat - 0.0004], zoom: 17.4, pitch: 14, bearing: 18, duration: 8000,
+    /* Phase instable : le quartier se colore, se redécoupe, change sans cesse ; puis ARGOS met de l'ordre */
+    mosaiquePrete.then(lancerChaos);
+    carte3d.easeTo({ center: [cLng, cLat - 0.0004], zoom: 17.3, pitch: 16, bearing: 15, duration: 8500,
       easing: function (t) { return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; } });
-    plus(allumerParcelles, 5200);
-    plus(signalerAlertes, 6900);
+    plus(stabiliser, 6300);
+    plus(allumerParcelles, 6700);
+    plus(signalerAlertes, 7700);
     survol.forEach(function (s, i) {
       var el = document.createElement('div');
       el.className = 'balise';
       el.innerHTML = '<div class="faisceau"></div><div class="pied-b"></div>' +
         '<div class="carte-b"><b>' + s.commune + '</b><span>' + s.rue + '</span><span>' + s.nature + (s.surface && s.surface !== '—' ? ' · ' + s.surface : '') + '</span><i></i></div>';
       new maplibregl.Marker({ element: el, anchor: 'bottom' }).setLngLat([s.lng, s.lat]).addTo(carte3d);
-      plus(function () { el.classList.add('pose'); }, 6200 + i * 900);
+      plus(function () { el.classList.add('pose'); }, 8300 + i * 800);
     });
-    plus(function () { carte3d.easeTo({ bearing: 30, zoom: 17.6, duration: 4500, easing: function (t) { return t; } }); }, 8000);
-    plus(function () { intro.classList.add('titre'); }, 9200);
-    plus(finir, 12800);
+    plus(function () { carte3d.easeTo({ bearing: 28, zoom: 17.5, duration: 4500, easing: function (t) { return t; } }); }, 8500);
+    plus(function () { intro.classList.add('titre'); }, 9800);
+    plus(finir, 13400);
   });
 })();
 
