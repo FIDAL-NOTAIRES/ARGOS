@@ -341,7 +341,7 @@ body.charge-cartes .carte-zone,body.charge-cartes .incrustations{opacity:0}
       <p>Choisissez un site dans la liste ou sur la carte.</p>
     </div>
     <div class="outils">
-      <input id="recherche" type="search" placeholder="Commune ou rue" aria-label="Rechercher une commune ou une rue">
+      <select id="commune" aria-label="Filtrer par commune"></select>
       <select id="region" aria-label="Filtrer par région"></select>
       <div class="vues" role="group" aria-label="Classement de la liste">
         <button type="button" data-vue="region" aria-pressed="true">Par région</button>
@@ -412,7 +412,7 @@ body.charge-cartes .carte-zone,body.charge-cartes .incrustations{opacity:0}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/4.7.1/maplibre-gl.min.js"></script>
 <script>
-/* ===================== ARGOS · maquette v0.44 · clients et documents fictifs, parcelles réelles lues au cadastre ===================== */
+/* ===================== ARGOS · maquette v0.45 · clients et documents fictifs, parcelles réelles lues au cadastre ===================== */
 var MISE_A_JOUR = 'octobre 2026';
 
 var NOTAIRE = {
@@ -804,7 +804,19 @@ document.getElementById('resume').innerHTML =
 /* ---------- Liste par commune, recherche et filtre par région ---------- */
 var selRegion = document.getElementById('region');
 selRegion.innerHTML = '<option value="">Toutes les régions</option>' + regions.map(function (r) { return '<option>' + r + '</option>'; }).join('');
-var champ = document.getElementById('recherche');
+/* v0.45 : liste déroulante des communes (avec code postal), à la place du champ de saisie ;
+   elle ne propose que les communes de la région choisie */
+var selCommune = document.getElementById('commune');
+function remplirCommunes() {
+  var r = selRegion.value, garde = selCommune.value;
+  var liste = Array.from(new Set(SITES.filter(function (s) { return !r || s.region === r; }).map(function (s) { return s.commune + '|' + s.cp; })))
+    .sort(function (a, b) { return a.localeCompare(b, 'fr'); });
+  selCommune.innerHTML = '<option value="">Toutes les communes</option>' + liste.map(function (k) {
+    var c = k.split('|'); return '<option value="' + c[0] + '">' + c[0] + ' (' + c[1] + ')</option>';
+  }).join('');
+  selCommune.value = liste.some(function (k) { return k.split('|')[0] === garde; }) ? garde : '';
+}
+remplirCommunes();
 var elListe = document.getElementById('liste');
 var visibles = SITES.slice();
 var courant = null;
@@ -821,11 +833,11 @@ function cleCom(s) { return s.region + '|' + s.commune; }
 function blocAccueil() { return ''; }
 function construireListe() {
   setTimeout(majToutPlier, 0);
-  var q = sansAccent(champ.value.trim()), r = selRegion.value;
+  var q = selCommune.value, r = selRegion.value;
   visibles = SITES.filter(function (s) {
-    return (!r || s.region === r) && (!q || sansAccent(s.commune + ' ' + s.rue).indexOf(q) !== -1);
+    return (!r || s.region === r) && (!q || s.commune === q);
   }).sort(function (a, b) { return a.region.localeCompare(b.region, 'fr') || a.commune.localeCompare(b.commune, 'fr') || a.rue.localeCompare(b.rue, 'fr'); });
-  if (!visibles.length) { elListe.innerHTML = '<p class="vide">Aucun site ne correspond. Essayez une autre commune ou une autre rue.</p>'; return; }
+  if (!visibles.length) { elListe.innerHTML = '<p class="vide">Aucun site ne correspond. Choisissez une autre commune ou une autre région.</p>'; return; }
   var tout = !!q || !!r;
   var html = '';
   if (modeListe === 'commune') {
@@ -867,7 +879,10 @@ elListe.addEventListener('click', function (e) {
     if (window.matchMedia && window.matchMedia('(max-width:700px)').matches) document.getElementById('zoneCarte').scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 });
-champ.addEventListener('input', construireListe);
+selCommune.addEventListener('change', function () {
+  construireListe();
+  if (visibles.length) carte.flyToBounds(L.latLngBounds(visibles.map(function (s) { return [s.lat, s.lng]; })), { padding: [60, 60], maxZoom: 16, duration: 0.9 });
+});
 /* v0.39 : tout déplier / tout replier (régions et communes, dans les deux classements) */
 function clesListe() {
   var k = [];
@@ -891,6 +906,7 @@ document.querySelector('.vues').addEventListener('click', function (e) {
   construireListe();
 });
 selRegion.addEventListener('change', function () {
+  remplirCommunes();
   construireListe();
   if (visibles.length) carte.fitBounds(L.latLngBounds(visibles.map(function (s) { return [s.lat, s.lng]; })).pad(0.2));
 });
@@ -941,7 +957,7 @@ function afficherFiche(s) {
     '</div></div>';
 }
 /* Blocs repliables de la fiche : caractéristiques repliées par défaut, documents dépliés ; le choix est gardé d'un site à l'autre */
-var etatBlocs = { carac: false, echeances: true, docs: true, assist: false };
+var etatBlocs = { carac: false, echeances: false, docs: true, assist: false };
 function titreBloc(cle, libelle) {
   return '<button type="button" class="titre-bloc" data-bloc="' + cle + '" aria-expanded="' + etatBlocs[cle] + '">' +
     '<svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 5l7 7-7 7"/></svg>' + libelle + '</button>';
