@@ -241,6 +241,11 @@ body.accueil .retour-liste{display:none}
 .accueil-liste p{margin:8px 0 0;font-size:12.5px;line-height:1.5;color:#46525F}
 .accueil-liste button{margin-top:12px;width:100%;height:32px;border:1px solid var(--brume-trait);border-radius:6px;background:var(--brume);color:var(--nuit);font-size:13px}
 .accueil-liste button:hover{border-color:var(--carmin);color:var(--carmin)}
+.tout-plier{display:flex;align-items:center;justify-content:flex-end;gap:4px;align-self:flex-end;background:none;border:0;padding:0 2px;font-size:12px;color:var(--canard-fonce)}
+.tout-plier svg{width:14px;height:14px;transition:transform .2s ease}
+.tout-plier[aria-expanded="true"] svg{transform:rotate(180deg)}
+.tout-plier:hover{color:var(--carmin)}
+.tout-plier:focus-visible{outline:2px solid var(--canard);outline-offset:2px}
 .retour-liste{display:flex;flex:none;align-items:center;justify-content:center;gap:8px;margin:10px 12px 4px;width:calc(100% - 24px);height:38px;border:0;border-radius:8px;background:var(--nuit);color:#fff;font-size:13px;box-shadow:0 1px 3px rgba(15,34,56,.25)}
 .retour-liste svg{width:16px;height:16px;color:var(--cyan)}
 .retour-liste:hover{background:#1A3352}
@@ -300,6 +305,7 @@ body.accueil .retour-liste{display:none}
         <button type="button" data-vue="region" aria-pressed="true">Par région</button>
         <button type="button" data-vue="commune" aria-pressed="false">Par commune</button>
       </div>
+      <button type="button" class="tout-plier" id="toutPlier" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M7 9l5 5 5-5"/></svg><span>Tout déplier</span></button>
     </div>
     <button type="button" class="retour-liste" id="retourListe" data-retour><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3z"/><path d="M9 3v15M15 6v15"/></svg>Retour à l’ensemble</button>
     <div class="defile" id="liste"></div>
@@ -364,7 +370,7 @@ body.accueil .retour-liste{display:none}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/4.7.1/maplibre-gl.min.js"></script>
 <script>
-/* ===================== ARGOS · maquette v0.38 · clients et documents fictifs, parcelles réelles lues au cadastre ===================== */
+/* ===================== ARGOS · maquette v0.39 · clients et documents fictifs, parcelles réelles lues au cadastre ===================== */
 var MISE_A_JOUR = 'octobre 2026';
 
 var NOTAIRE = {
@@ -719,6 +725,7 @@ function blocAccueil() {
   '</div>';
 }
 function construireListe() {
+  setTimeout(majToutPlier, 0);
   var q = sansAccent(champ.value.trim()), r = selRegion.value;
   visibles = SITES.filter(function (s) {
     return (!r || s.region === r) && (!q || sansAccent(s.commune + ' ' + s.rue).indexOf(q) !== -1);
@@ -762,6 +769,22 @@ elListe.addEventListener('click', function (e) {
   if (b) choisir(+b.getAttribute('data-id'), true);
 });
 champ.addEventListener('input', construireListe);
+/* v0.39 : tout déplier / tout replier (régions et communes, dans les deux classements) */
+function clesListe() {
+  var k = [];
+  SITES.forEach(function (s) { k.push(s.region, cleCom(s), 'C|' + s.commune); });
+  return Array.from(new Set(k));
+}
+function majToutPlier() {
+  var b = document.getElementById('toutPlier'), tout = clesListe().every(function (k) { return ouverts[k]; });
+  b.setAttribute('aria-expanded', String(tout));
+  b.querySelector('span').textContent = tout ? 'Tout replier' : 'Tout déplier';
+}
+document.getElementById('toutPlier').addEventListener('click', function () {
+  var ouvrir = this.getAttribute('aria-expanded') !== 'true';
+  clesListe().forEach(function (k) { ouverts[k] = ouvrir; });
+  construireListe();
+});
 document.querySelector('.vues').addEventListener('click', function (e) {
   var b = e.target.closest('[data-vue]'); if (!b) return;
   modeListe = b.getAttribute('data-vue');
