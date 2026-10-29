@@ -233,12 +233,18 @@ body.visite .visite-ctl{display:block}
 .pastille{box-shadow:0 0 0 2px rgba(160,16,64,.3),0 2px 10px rgba(15,34,56,.35)}
 body.accueil .corps{grid-template-columns:240px minmax(0,1fr) 320px}
 body.accueil .fiche{display:none}
+body.accueil .retour-liste{display:none}
+/* v0.37 : le retour reste toujours visible, en tête de la colonne, hors de la partie qui défile */
 .accueil-liste{margin:14px 12px 4px;padding:14px 14px 12px;background:#fff;border:1px solid var(--brume-trait);border-radius:8px}
 .accueil-liste h2{margin:0;font-weight:400;font-size:20px;color:var(--nuit)}
 .accueil-liste .trait{width:30px;height:2px;background:var(--cyan);margin:9px 0 2px}
 .accueil-liste p{margin:8px 0 0;font-size:12.5px;line-height:1.5;color:#46525F}
 .accueil-liste button{margin-top:12px;width:100%;height:32px;border:1px solid var(--brume-trait);border-radius:6px;background:var(--brume);color:var(--nuit);font-size:13px}
 .accueil-liste button:hover{border-color:var(--carmin);color:var(--carmin)}
+.retour-liste{display:flex;flex:none;align-items:center;justify-content:center;gap:8px;margin:10px 12px 4px;width:calc(100% - 24px);height:38px;border:0;border-radius:8px;background:var(--nuit);color:#fff;font-size:13px;box-shadow:0 1px 3px rgba(15,34,56,.25)}
+.retour-liste svg{width:16px;height:16px;color:var(--cyan)}
+.retour-liste:hover{background:#1A3352}
+.retour-liste:focus-visible{outline:2px solid var(--canard);outline-offset:2px}
 .retour{align-self:flex-start;background:none;border:0;padding:0;margin:0 0 10px;font-size:12px;color:var(--canard-fonce);border-bottom:1px dotted var(--canard)}
 .retour:hover{color:var(--carmin);border-bottom-color:var(--carmin)}
 @media (prefers-reduced-motion: reduce){#intro{display:none}}
@@ -295,6 +301,7 @@ body.accueil .fiche{display:none}
         <button type="button" data-vue="commune" aria-pressed="false">Par commune</button>
       </div>
     </div>
+    <button type="button" class="retour-liste" id="retourListe" data-retour><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3z"/><path d="M9 3v15M15 6v15"/></svg>Retour à l’ensemble</button>
     <div class="defile" id="liste"></div>
     <div class="resume" id="resume"></div>
   </aside>
@@ -357,7 +364,7 @@ body.accueil .fiche{display:none}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/4.7.1/maplibre-gl.min.js"></script>
 <script>
-/* ===================== ARGOS · maquette v0.36 · clients et documents fictifs, parcelles réelles lues au cadastre ===================== */
+/* ===================== ARGOS · maquette v0.37 · clients et documents fictifs, parcelles réelles lues au cadastre ===================== */
 var MISE_A_JOUR = 'octobre 2026';
 
 var NOTAIRE = {
@@ -775,7 +782,6 @@ function afficherFiche(s) {
   var a = AVOCATS[s.region];
   var i = visibles.findIndex(function (x) { return x.id === s.id; });
   document.getElementById('fiche').innerHTML =
-    '<button type="button" class="retour" data-retour>Retour à l’ensemble des sites</button>' +
     '<h2>' + s.commune + '</h2>' +
     '<p class="adr">' + s.rue + ', ' + s.cp + ' ' + s.commune + '</p>' +
     '<div class="nav-site">' +
