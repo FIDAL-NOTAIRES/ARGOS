@@ -252,6 +252,10 @@ body.accueil .retour-liste{display:none}
 .retour-liste:focus-visible{outline:2px solid var(--canard);outline-offset:2px}
 .retour{align-self:flex-start;background:none;border:0;padding:0;margin:0 0 10px;font-size:12px;color:var(--canard-fonce);border-bottom:1px dotted var(--canard)}
 .retour:hover{color:var(--carmin);border-bottom-color:var(--carmin)}
+.carte-zone,.incrustations{transition:opacity .8s ease}
+body.charge-cartes .carte-zone,body.charge-cartes .incrustations{opacity:0}
+.corps{background:var(--brume)}
+.logo-intro{height:58px;width:auto;margin-top:16px;letter-spacing:0}
 @media (prefers-reduced-motion: reduce){#intro{display:none}}
 @media (max-width:1100px){
   body{overflow:auto}
@@ -271,7 +275,7 @@ body.accueil .retour-liste{display:none}
 }
 </style>
 </head>
-<body>
+<body class="charge-cartes">
 
 <div id="intro" role="presentation" aria-hidden="true">
   <div id="introCarte"></div>
@@ -279,7 +283,7 @@ body.accueil .retour-liste{display:none}
   <div class="intro-boite">
     <div class="nom-intro">ARGOS</div>
     <div class="trait-intro"></div>
-    <div class="sous-intro">FIDAL Notaires</div>
+    <img class="sous-intro logo-intro" alt="FIDAL Notaires" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAWUAAACRCAYAAAAb8akAAAAX/UlEQVR42u2debwU1ZXHv82DBzwEBAQERBZBcEUEFxBxX6JEUdRg4kKUxGg0jpmo4zjJxCUmmclnkpnEqDNZ3WLGaIxrzCTGLcZAiKKgiUZFjBsKiuzLe50/znlD21T1666qrq5+/ft+PvWB1911q+rWrV/de+455+by+TxCCCGyQRdVgRBCSJSFEEJIlIUQQqIshBBCoiyEEPVH1w6+HwDk6uyaNgErUz5mi2+Vkvf6XQG0ZaT++vnLOqn7ngNagff8ekV1+RQwFXgG+GaDXHMvf/6itq/1wOqsXEyuhEvcrcARQPc66VHnXdjeBvYC1qZ47OeAYS5AldRVm5/3k8BJwKoa1+H3gBlAT6ApwXLbXJg3+N+bgTeAd4BlwMvAEuAFYCnwprQ18sh3ObAt8AFwPnBTA1z3QmCMt7NchOdvKfBp4PdZ7ykPBLar04Y5yB/ytBgC9Im5/8AMiHI/YHBKxxpW4rsVwF9dpBcB9/iLT5TmKy7IeHs8G/gZsK5Bespx2uLgrFxMlw7eIqKxyMo97w/sC5wGfA2YD8xz0TlEtymQnj7KKeQAH4F1dvIJ7J8Z05om+kQ9tIcWYB/gEuAW4F7gs8BOumX/z/HA6ICR8FGqmg7JkaG5M4myqCe6YqaeY4FvAPcDPwQ+2uD10h2YHTKEPxQ4Uk1HPSMhqk0PYGdgDnAbNkl5TIPWxWxg/5DvhgAnqrlIlIVIkxZsUusW4AZgSoNd/8mUnqg6FNhdzUSiLETabIu5Nt2G+es2AscAkzv4zWj1liXKQtSSHYHrgdsxn/XOzBw6dudqwrwwRqppSJSFqGXbPgm4js5rzjgUi94rh/HAGWoWEmUhas3+wN3A5zrhtZ1B6SCcQrphJp0mNQmJshC1ZjvgImwysLOwJxZgUwk7YP7dQqIsRM0ZCVwMfL6TXM9ZRAueuUBNQaIsRFYYh5kxjq/z6+gJTAeaI+w7BjhcTUGinCbK2VF7WrFMcEFba43v0QgsA+LkOq7f84jndzxXTTS7dK1y+eux9IyVptSLQntCkZVsSREp0udmLIBjU8g974rZNtszc43zf4dh+bt7pNBWWoA7Mde5eqMfcAo2cReV6VhOjAfVXBtPlL8FXKZqbhjWAr8AHo+4/ygss9lhwB7ALsRLyViK4cB/UH825tnE970ejHluSJQb0Hzxiqq44dgYs73cDHwSOBO4HLgPeL+KAndAndXvTKLZkouf+318Ew0myjIjiKgs9pHWDOBS4DHMHp0kQ4Bz6qhOTkjwJTIC+LiaWeOJstZkE0nw3y6et5D8Ml+HUz+J4E/GVtlIgmYspedeal6NJcpCJMXzmEnjImxNvyR7y2fVwfXvj5kukmQ8ncdvW6IsRA17zVckLMx7umkgy8zC/JOTfv4PAvqqWUmUhYjDjcDVmLtlEgwDTs3w9U7GVlupBsPVW5YoC5EEPwTuSLC8XbHJryxyItVLu5lD6/hJlIVIiKuBPyRU1kjgIxm8xqHeS+5ZxWNMQJ4YEmUhEuB14JvAmgTK6gVMy+A1nopNyFWTHtgkqpAoCxGbnwJ/SqisccCgDF1bf8wzpDmFY01ASfAlykIkxPexPCtxGUG2EhWdSbT0nFEYDBytpiRRFiIJfgy8nUA5A73HmBUuAbqneLxjUOi1RFmIhJiXUDm7ZOR6TgW2T/mYfamvsHOJcgRyqmKRoii/n0A5QzNyPVGXrmoD5mOpU6MwE9hPzanzinI/VbFIiYUJiXLvlE0GQUwF9o6473zgSqKnTx2ARQ+KGlHtfMqz/EHZXKVecw4Lt31ct7LheSZBUe4HvFXDa5kTsUPTBvwIuBfLR70/0fybP4pNnv5FzarzifI0LNVgNbLF5bFUjo9jKzEs1+1saN4GViUkyr1rKMpTgSkR930HW2QA4Dcu7jtHKGc8ljJVolwD0pjoy/lxkt6aMP/NviSXzlDUNysTKKMHtTW7nUX09fceBd70/8/zHnNUTkGJijqtKAuRFkmYL/LUbmHX3YCDI+67DMsHUsiDRHcV3BU4Tk1KoixEHOrdhHU6tk5hFJ4BHij67FfA7yOWtw3mlteiZiVRFiIq9eyCOQY4IuIz+T5mQw7iVzHOaTLZzzMtURYiw9SzC+ZnMfNFFP4C3Bby3T3ei47CQOpjVRaJshAZpX9C5aRtU+6D5Z2I6h/9ELAk5Lu/YSuCR2UayokhURYiItskUMYm4IOUz/tMoqfnXAH8rIPf3A8sjVh+M/BFNS2JshCV0i8hUV4LrEv5GTwmxv6P0HHq0seBRTGOMZVsJWqSKAtRB4wlGb/a9STjWlcupwMTY/Tqf1nmb38X8zwvVBOTKAtRCZNJZqLvPZJZyaRcPoXlMo7CIiwcuhx+DDwR4zxnYqHbQqIsRFlMwMKj4/JGiuf8EaJ7XADcjqUaKIfXY4pyP7RklERZiArYnWSWTVqS4jmfCmwbcd+1wM8r3Od+4plmDlRvWaIsRDns6FtcVgJ/TumcpwGHxNj/1xHO9bfAizGOuRuWqEhUkWpniVtZxeFg+7BtMckkohH1y2nAkATKeY3oYcmV8jFghxj7PxRxvyeIvuRTL+Ak4FrSdxuUKCfE5X4Dhagms7CsgXFZSjrpKscDn4xZxsXAx7Fc5eWSB0YmcO4XAlep2dWnKK9WFYsqcwowOoFy8sTz5a2E2cRPNzvMt7RpwZLgf4tk8leLIqptU86rikWVOZfok2WFLMMCMapNe0h1PbMTZn4RdSjKQlSTq4huHy3mBeDhFM75NGCvOq/3/sCJan4SZSEKOQlb7iiJVWfasFDktVU+56EuZt07Qf3vi9J6SpSFcA4BvkI874VCXgHuSuG8TwYmdZJ7MACZMCTKQgDTgauJtiBoGH/E1rSrNseTjP07S73l/dUkJcqicTkDuA7LWpYUS4FbUzj3EzpRL7mdUd77FxJl0WAMBm4ArsEW9EySx4C7U7iGizDPi87GDKKvvi0kyiIFklwnbzzwZSzK7tMk75f7PmabrjZHAVM66f3eGcvhoXabEF0RIjnyQLeYZfTHJvIOw9Jx7kwyeZKDuAF4PoV6OauTP2vHAd8G3qrT828Ctpcoi85IM2Y3nY+F/+Y7aHt9sZwVO2ABCbtiiYVGU/0JsQXAP6VQJ3tik5Odmd2xvND1GnrdB0tLOoLyU6HG7bzkgJcJyIctURZJ0s0fziMKGl4Qbd72mrGw3T7eQ05rCPkOZp9Og7OwVaHj0FplsWgifu6QmdR3Poz9fGSWBm1+P+dJlEUaDPAtq3zgPeQ7UzjWSGz9vTiC9xzwAJZnIumXVs5fnttgXhRx0p/ujeUh+d86brtNKR6nW9hoUKIsGol1wHeAH6R0vFOxtQOjsgK4gOhpOivhd8DNPnKJyilYEM5GNbWy6FL2h0J0QpZjQSeXp3S80cTPD/FsSoKMi+ljMcuYgoW/i6SVWohOxgos1eQ1KR7zeGySLw43pXi+ecxfO04vdxBmrhESZSFCed17x1eneMwWLIIvzpqB71L+StVJcT+WByQqXYEDsKWuhERZiA+xCVuTbi5wfcrHngNMjFnGAzWosyVYtrw47Ih5nAiJshAf6mV+D1vh45c1OP4szKMhKsuxCcla8HPiBYF0wYJJDlYzlCgLAfAH4ArgPGw1kbSZgWVPi8Ni0slaF8R9wFMxyxiAeY0IibJoYP4KXAYcWcNeJtgEX5xe8mrSSZBUigeJv5TbR4AeapYSZdF4vIwlLToM+BoWHFIrphM/reifgdtqXKf3Y+54cegJfEHNU6IsGoO3sMixWVjehSuwvMi15nzipRZtA+7FPEZqyYvAbxIoZy4WPi8qoNoRfW0NUo95XUdVz2k9Nnn3EvAk5pnwaMbOcyzxbclvUnvTRTu/Bj6B+R5HZUcsfPsGPX/ln7fCrEWWGvdmF+CNWK7jpT6cX4BlnluY4bo7G8syFodHiD/JlhT3Y+5xcaISc5i/9h3+Uq0Wuc70EJYS5dXASsxYn6vwwc5hfqIbGkTMlns9dYlQV3kXoCzkC1jl19KL6pm28tiq0Zu9fawC1ngdvAY848PnRcCrdXL/e2O25HV+/7tEqJMVbrrIEg9jwSB9I7aHNmzJqGlUd2Ha5cDwOhLnPJYl7r3AN0w+H9o5GgyMiXgzcmxZtr0RmED0pX5y3qgWZ+A6+mGrfTRVsYFvxCbn1rsgdxamRKy3vO+33F9EWWMPF+Uo7aFdfJ71Tl612B5bDKFezBjtHddlwF8qEWUhhBApI+8LIYSQKAshhJAoCyGERFkIIYREWQghJMpCCCEkykIIIVEWQgghURZCCImyEEIIibIQQkiUhRBCSJSFEEJIlIUQQqIshBBCoiyEEBJlIYQQEmUhhJAoCyGEkCgLIYREWQghhERZCCEkykIIISTKQgghURZCCCFRFkIIIVEWQgiJshBCiGC6qgrKZiLwUeAbwNoI+48Epnud5/2zVcBdwOYEzm9nYG9gf2AHoC/QBKwBlgHPAQuAh2McYzKwu/8/F/N8c8AG4B7ggxjlHAysB55M8F4fCozw+9TF78+fgEUVljEY2Mb/bSm47wCtwErgReCvfn/icCQwrMJ92q/vXeDuiMc9HJgCjAcG+X1dA7zj7e0JYKHkQ6JcDfYCPgUMAb7gDa8SzgA+CfTwv9uAt1yQfhVTKE91wR9S4sF8t0Ccb3QxrJRzgBkJiHKb77/WheHWGGVd7HV6WIL3+iJgAtDN/14P3AtcUOb+pwD/AvT3MnoBzQF1sA5YAbwPPAM8AvzEX1aVMAj4HDCpwvvS5tvCCKJ8EHAesJ+3u+aA38wAXgOeBW4HHpCMSJSTJA9sD8z1/1/qPd1yGea95UKa/YGNyvnAucCYkIeikO1829VfMEcB/wW8UMHxhnsdJEm/GPvOBqYC23pv7fcJndNw3woZWMH+o4E9yvhddz93fJRzhL9crq2w57+t9+yj3pt3Kvz9x/xlOKmD3w32bSKwC7AUWCwpKY1sypXVVc5fZOcCP3ITQSXD9XI+K4duwP8AX3GRba5w/zHAZ73nMiLmNdSSjxWI2twEy83V6LkaBpwG/MJHPpWcb5eUrvdQ4OtlCHIhTT6a2SAZkShXkxO9ZzahBgLwcxehPiV+s8m3jnp0C4EDyjxuaxXqsS3ifrOAYwr+Pho4tor3O80X0iA3l7SkOAoshxbgn0u8yDdgpp6ge7oYs50LmS+qyi6YDfBMYH5Kx7ymhPjkMdvkH4GXsAmqMdjk3O4hIt4XuAKbsOmIFwseyGKRGuBiEsRrwOqi88xjNtWlMXrJzUVCdgJwX4bby3t+f9Z477Gfv9S7B/y2N2bD/nqM420E3vTj5ULaS5ufUzkcDYwLOc7dmE18M2b6mQyMBUb5y/xpyYVEOU1hvsZNCQ9X+Vi7uekkiPeBO/08Xi76bhQwB5sQHBuw72Q3Z1zbwfGvAH4Q8t2R2ORWsfA/hXmsLC4Sg5w/wFFsjFOBQwLa8lRgzwpEJm1u9LayzP/eATgbm0AOmqA9KKYoLwa+6fWRC+gRt9+Ht8ssbxI2L1HMb7FJ4BVFnx/rL8+BLthCopwah/tDdbmbFqrF59liQy1kBfClEqL6CvCvwPPAfwb0aPsCnwBuoLR73oqAB6+dt7xnVyzKfyKed0UQJ4aIw05+HVkU5Q1eF8sKPvubv+hWu/g2Fe0zwuszqsvgi8BNCV7DUILnL+4NaRf3+TYSWCKZKA/ZlJPvMX+6SuVvj9lRg4aOPy2jlwtwG/DdEOHdDTguxvmtI9jmvCnhetgH8xwJotm/2zOjbSTMfn6TC3Qx3YhnV25L+PxXhdzP4R3sJ0GWKNeM8cC/AZ+pQtkHE+zt8WfME6NcrgTmBXzeJ8AkkIQA5BOuh+PYEsASdg8+k8G2kS9RR2tKvLziTDAmPTm5OKTXfibmIidkvsgkfTHbKsD1CZYb5oL0BGa3rUQcFmD212JG+hC6NaN1u20ZL47u/gLLVeGFEJcwkRxJsL96DvNmiMquWCDLghIvyHco39/+d8AbbO2zPRj4KuabfRc2tyHUU84Uw4CrsUm3XEK9lrEhn0exn84Hlgd8PgQL184qp2OBL8XXsrLos52Bf6ij9nK6130xL2MeG1HZA5uYfRL4g4+QirdKvFUWAXeEiHuTX8etwEPqOUuUs8gAF4Yf+989Ypa3XcjnSyKUtYTgKK5mzBUrqxxX1KNcDfw78J2iHmUTwfb3Wo9Khwe8vL8KfDxkn58lcNxe3nYGhGxD2RJOXg5f7+C8uvto5hoX/KMkBTJfpEl73obBWKRT8UuuxXsPA4kXZNKC5VEIYnmE8laHDItzGa7ri9k6yOVhLKfCfS5sowq+m+h1f1OGnrXzMDe3tS6II9g69L6deVQ2VxCVJiqbENzoJpEvYWH+A0tc7zGY2e0W4B8lFxLlNFiDuQPNB76N5S0Ichk6OuZxNhGema5PhPJ6hPSO8mTPDtvOTKBnwd/rC4bea32IPqroRXZShkQZgnNqBPEK8OWUzilqhsIrMdPZHCwpUVjejcHYxOsHmPufkChXlTbMnvkScBbmeTGzCiaATZgfcBA7RihvlD8sxbTy4ci7rHAylpK0WLgKfcJ/4r8pFOZJvu/tddSmnnFBTiKjWiuWcGoVwROfXTBf5qgTu3f5Nt1HJQdjEaRBI70zgEexQBMhUU6Ft7Dgjk0u0EkTFo48LkJZexFso16OhURnjXPY2jS0mA9Hoj2PBWYUivIwzKZZL6K8EpscTioA6UngEizEuWuAKOeoLNNhGI/6diw2j3IYW5vCRmNZ8CTKEuVUeRcLm+2FhZcmydMhn09z8Xm9grLC3OtezGBPeReCcyUfheX4aM/r0Oy/LWY2FsX4bB20n24kO/m+FHOZTIv2CL57Cc7PsqskomPkfVEdZmO5ilclWGbYw7U34fkwgjiX4LSQG4DfZLAuLwr5vLe/XKYDB2J2zSD7ei8st0StacU8F8b5S3QuW69k0uL3Z1BCx6zVxO0VWCIkdQIlypniQmyG+tWEylsUMvTrga1oMruMMqb7Qx/0cDyH2QezxD4uuHE5ka39m9NmM2ZieQELwPg+wTlBJgJfzGibnoQFRu3bwe/6E+zRkZcsSJRrzbe8ESclzNcRnCh8KHAZluktjJOxiciwFTFuJJm1ApNkFpZkKC7DsPUVa01x/f6ErYN/emOuZPskcLyBBJt0onI8ltvlesz2PTngNz0xl7mhAd+9J0noGA0nqs/Nbsa4mtI5G8rhdn9g5wR8t6e/BGZgaRJfcgEfXTDEDwtAudv3zRL7+rUWu+4971sYLZjtstgr5QTghwQn/kmL4p7iEszLojiB0mgs3elBMY+3n/fIl4SYMtrXSnypzN75AWxx62v3A38Bizxchfk8j8XmOYqPt4HsplSVKDcgv/Ae0KUJCPOX/OEYG3I/j/atlS2uTqWWi3oVS+uZNWaydWDF216HHS36eh5bZ82b6D29a2t0PWFD9+96L754Emw6NsEZx86/DbZ24ZQOfjevDFGexoc9WygQ6HIWrX0J+D9JgcwXWesxz8byAsThNSxZfUflNLkYlxLkBV7W0xmrq3Fuuij2936U8lbh/i7B3ignUdmahGmwFAsTD7LBXkVl60BGpXsZvzkai0KMwjos3cBCyYBEOUnCQlErmeFejCWCf6ig9xQl5+0CbPb+TqK5sG303vtcklsBOklO9yF88YP9cAVlBE2iTXAzRkdUy2shrNzrsInWYnbHfN+zwAtYmtj1EdraTViOEiFRTmUIWumM8nOYrfRBbOIn6j14xXuT52M24XLEeTWW5Wu2mweernLdRGEwFmRQbFp7CpsYK5cfsPWkaL8yRTnufc6HCHKpMu5haxfK3liu4kkp1X0pbnQzy4WYH3I57e0RLMT6HOR5Uf6bO59XXZXJdv6A9Czo8XyATR5FWa6nP5Zk5w4sCCIOzdiSVPthtsm+mKtckz/oq3zo+BTmVre2SnV0Nubp0J5DoxWbyKpU/M/BPAdyBaLzGJWv83Y2H/YCyGN26Y4S/bQnN+pS0NubT/mmp53cVNJccNzV3mNcXqKDdKbXX2GPepWPiDpaYPYTAaOLcmjFJj9vrLAzdyAW1r6b36veXtZaP9dn/bzfkHRIlIV5LPTwh3sdyS/JJETxKKAXZopbq+qQKAshRKdBNmUhhJAoCyGEkCgLIYREWQghRLn8HQvGW/gu/U4KAAAAAElFTkSuQmCC">
   </div>
   <button type="button" class="passer" id="passerIntro">Passer</button>
 </div>
@@ -370,7 +374,7 @@ body.accueil .retour-liste{display:none}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/4.7.1/maplibre-gl.min.js"></script>
 <script>
-/* ===================== ARGOS · maquette v0.39 · clients et documents fictifs, parcelles réelles lues au cadastre ===================== */
+/* ===================== ARGOS · maquette v0.41 · clients et documents fictifs, parcelles réelles lues au cadastre ===================== */
 var MISE_A_JOUR = 'octobre 2026';
 
 var NOTAIRE = {
@@ -437,11 +441,13 @@ function couche(layer, format, style) {
 
 /* zoomSnap 0,25 : le cadrage d'ensemble serre au plus près le patrimoine, au lieu de sauter d'un cran entier */
 var carte = L.map('carte', { zoomControl: true, preferCanvas: false, zoomSnap: 0.25 }).setView([49.3, 1.5], 7);
-couche('GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2', 'image/png').addTo(carte);
+var fondPlan = couche('GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2', 'image/png').addTo(carte);
 carte.attributionControl.setPrefix(false);
 
 function petiteCarte(id, fond) {
-  var m = L.map(id, { zoomControl: false, attributionControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false, boxZoom: false, keyboard: false, touchZoom: false });
+  /* v0.41 : zoomSnap 0 — les petites cartes prennent exactement le zoom (fractionnaire) de la carte principale ;
+     avant, elles l'arrondissaient au cran entier, d'où une échelle différente */
+  var m = L.map(id, { zoomSnap: 0, zoomControl: false, attributionControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false, boxZoom: false, keyboard: false, touchZoom: false });
   fond.addTo(m);
   return m;
 }
@@ -1233,6 +1239,17 @@ cadrerEnsemble(false);
 synchroniser();
 dessinerPastilles();
 ajusterSobriete();
+/* v0.40 : au chargement, les cartes restent voilées tant que leurs tuiles arrivent, puis apparaissent ensemble en fondu
+   (plus d'apparition carré par carré) ; au plus tard après six secondes, on dévoile quand même */
+(function () {
+  var debut = Date.now(), calmes = 0;
+  (function guetter() {
+    var occupe = [fondPlan, aerAuj, planGris].some(function (c) { return c.isLoading && c.isLoading(); });
+    calmes = occupe ? 0 : calmes + 1;
+    if (calmes >= 3 || Date.now() - debut > 6000) { document.body.classList.remove('charge-cartes'); return; }
+    setTimeout(guetter, 120);
+  })();
+})();
 /* Lecture des sites l'un après l'autre (le service public limite les appels simultanés), le site affiché en premier */
 (function () {
   var file = SITES.slice().sort(function (a, b) { return (b.id === courant) - (a.id === courant); });
