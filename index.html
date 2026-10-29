@@ -261,7 +261,7 @@ body.visite .visite-ctl{display:block}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/4.7.1/maplibre-gl.min.js"></script>
 <script>
-/* ===================== ARGOS · maquette v0.7 · clients et documents fictifs, parcelles réelles lues au cadastre ===================== */
+/* ===================== ARGOS · maquette v0.8 · clients et documents fictifs, parcelles réelles lues au cadastre ===================== */
 var MISE_A_JOUR = 'octobre 2026';
 
 var NOTAIRE = {
@@ -289,6 +289,8 @@ var SITES = [
   { commune: 'Grand-Quevilly', cp: '76120', region: 'Normandie', rue: 'Zone portuaire, rue de la Forge', lat: 49.4130, lng: 1.0390, nature: 'Atelier' },
   { commune: 'Le Havre', cp: '76600', region: 'Normandie', rue: 'Zone portuaire, route du Môle', lat: 49.4650, lng: 0.1650, nature: 'Plateforme logistique' },
   { commune: 'Mondeville', cp: '14120', region: 'Normandie', rue: 'Zone d’activité, rue des Halles', lat: 49.1755, lng: -0.3215, nature: 'Entrepôt' },
+  { commune: 'Paris', cp: '75008', region: 'Île-de-France', rue: 'Quartier du Faubourg-du-Roule', lat: 48.8728, lng: 2.3135, nature: 'Immeuble de bureaux' },
+  { commune: 'Paris', cp: '75008', region: 'Île-de-France', rue: 'Quartier des Champs-Élysées', lat: 48.8738, lng: 2.3005, nature: 'Immeuble de bureaux' },
   { commune: 'Gennevilliers', cp: '92230', region: 'Île-de-France', rue: 'Port de Gennevilliers, route du Bassin', lat: 48.9350, lng: 2.2900, nature: 'Entrepôt' },
   { commune: 'Rennes', cp: '35000', region: 'Bretagne', rue: 'Zone industrielle Sud-Est, rue de la Mine', lat: 48.0969, lng: -1.6241, nature: 'Entrepôt' },
   { commune: 'Brest', cp: '29200', region: 'Bretagne', rue: 'Port de commerce, rue du Bassin', lat: 48.3847, lng: -4.4713, nature: 'Entrepôt' }
@@ -626,14 +628,14 @@ function annoncer(t) {
   if (!window.maplibregl) { titreSeul(); return; }
 
   /* Deux sites d'une même ville pour le survol */
-  var survol = SITES.filter(function (s) { return s.commune === 'Amiens'; }).slice(0, 2);
+  var survol = SITES.filter(function (s) { return s.commune === 'Paris'; }).slice(0, 2);
   if (survol.length < 2) survol = SITES.slice(0, 2);
   var cLng = (survol[0].lng + survol[1].lng) / 2, cLat = (survol[0].lat + survol[1].lat) / 2;
   var carte3d;
   try {
     carte3d = new maplibregl.Map({
       container: 'introCarte', interactive: false, attributionControl: false, fadeDuration: 0,
-      center: [cLng - 0.03, cLat - 0.02], zoom: 12.2, pitch: 20, bearing: -40,
+      center: [2.3200, 48.8600], zoom: 13.4, pitch: 35, bearing: -35,
       style: { version: 8, sources: { ortho: { type: 'raster', tileSize: 256, maxzoom: 19,
         tiles: ['https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=ORTHOIMAGERY.ORTHOPHOTOS&STYLE=normal&TILEMATRIXSET=PM&FORMAT=image/jpeg&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}'] } },
         layers: [{ id: 'fond', type: 'background', paint: { 'background-color': '#0F2238' } }, { id: 'ortho', type: 'raster', source: 'ortho', paint: { 'raster-fade-duration': 0 } }] }
@@ -643,10 +645,11 @@ function annoncer(t) {
   var parti = false;
   plus(function () { if (!parti) { titreSeul(); } }, 5000); /* fonds trop lents : on passe au titre */
   /* Bâtiments en volumes : base BD TOPO de l'IGN (hauteur réelle), gratuite, via la Géoplateforme */
-  var dLat = 0.009, dLng = 0.013;
+  var dLat = 0.0085, dLng = 0.0125;
+  var cBati = [cLat - 0.004, cLng + 0.004];
   var urlBati = 'https://data.geopf.fr/wfs/ows?SERVICE=WFS&VERSION=2.0.0&REQUEST=GetFeature&TYPENAMES=BDTOPO_V3:batiment' +
-    '&OUTPUTFORMAT=application/json&COUNT=6000&SRSNAME=urn:ogc:def:crs:EPSG::4326' +
-    '&BBOX=' + [cLat - dLat, cLng - dLng, cLat + dLat, cLng + dLng].join(',') + ',urn:ogc:def:crs:EPSG::4326';
+    '&OUTPUTFORMAT=application/json&COUNT=9000&PROPERTYNAME=hauteur,geometrie&SRSNAME=urn:ogc:def:crs:EPSG::4326' +
+    '&BBOX=' + [cBati[0] - dLat, cBati[1] - dLng, cBati[0] + dLat, cBati[1] + dLng].join(',') + ',urn:ogc:def:crs:EPSG::4326';
   var batiPret = window.fetch ? fetch(urlBati).then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); }).catch(function () { return null; }) : Promise.resolve(null);
 
   function dansPolygone(pt, anneau) {
@@ -701,7 +704,7 @@ function annoncer(t) {
         paint: { 'fill-extrusion-color': '#A01040', 'fill-extrusion-height': 0.1, 'fill-extrusion-base': 0, 'fill-extrusion-opacity': 0.92 } });
       plus(leverClients, 2600);
     });
-    carte3d.easeTo({ center: [cLng, cLat], zoom: 16, pitch: 66, bearing: 25, duration: 7000, easing: function (t) { return 1 - Math.pow(1 - t, 3); } });
+    carte3d.easeTo({ center: [cLng, cLat - 0.0012], zoom: 16.2, pitch: 68, bearing: 20, duration: 7500, easing: function (t) { return 1 - Math.pow(1 - t, 3); } });
     survol.forEach(function (s, i) {
       var el = document.createElement('div');
       el.className = 'balise';
