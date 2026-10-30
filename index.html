@@ -315,6 +315,16 @@ body:not(.accueil) .accueil-tete{display:none}
 body.charge-cartes .carte-zone,body.charge-cartes .incrustations{opacity:0}
 .corps{background:var(--brume)}
 .logo-intro{height:58px;width:auto;margin-top:16px;letter-spacing:0}
+/* v0.52 : fiche du site en PDF (deux versions) et brouillon de mail */
+.export-ligne{display:flex;align-items:center;gap:6px;padding:7px 0;border-bottom:1px solid #EDF2F3;font-size:13px}
+.export-ligne:last-of-type{border-bottom:0}
+.export-ligne .nom-export{flex:1;min-width:0;color:var(--nuit);font-weight:600}
+.export-ligne .nom-export small{display:block;font-size:11px;font-weight:400;color:#6A7785}
+.btn-export{flex:none;height:30px;border:1px solid var(--canard);background:#fff;color:var(--canard-fonce);border-radius:6px;padding:0 9px;font-size:12px;display:inline-flex;align-items:center;gap:5px}
+.btn-export:hover:not(:disabled){background:var(--canard);color:#fff}
+.btn-export:disabled{opacity:.45;cursor:default;border-color:var(--lagon-trait)}
+.btn-export svg{width:14px;height:14px}
+.btn-export:focus-visible{outline:2px solid var(--canard);outline-offset:2px}
 @media (prefers-reduced-motion: reduce){#intro{display:none}}
 @media (max-width:1100px){
   body{overflow:auto}
@@ -456,8 +466,9 @@ body.charge-cartes .carte-zone,body.charge-cartes .incrustations{opacity:0}
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/4.7.1/maplibre-gl.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script>
-/* ===================== ARGOS · maquette v0.51 · clients et documents fictifs, parcelles réelles lues au cadastre ===================== */
+/* ===================== ARGOS · maquette v0.52 · clients et documents fictifs, parcelles réelles lues au cadastre ===================== */
 var MISE_A_JOUR = 'octobre 2026';
 
 var NOTAIRE = {
@@ -1071,6 +1082,7 @@ function afficherFiche(s) {
       '<button type="button" data-nav="-1"' + (i <= 0 ? ' disabled' : '') + '>Site précédent</button>' +
       '<button type="button" data-nav="1"' + (i < 0 || i >= visibles.length - 1 ? ' disabled' : '') + '>Site suivant</button>' +
     '</div>' +
+    blocExport(s) +
     '<div class="bloc">' + titreBloc('carac', 'Caractéristiques du bien') + (etatBlocs.carac ? '<div class="contenu-bloc">' : '<div class="contenu-bloc" hidden>') +
       '<div class="ligne"><span>Nature</span><span>' + s.nature + '</span></div>' +
       '<div class="ligne"><span>Parcelles</span><span>' + (s.parcelles ? s.parcelles.join(', ') : 'lecture du cadastre…') + '</span></div>' +
@@ -1110,7 +1122,7 @@ function afficherFiche(s) {
     '</div></div>';
 }
 /* Blocs repliables de la fiche : caractéristiques repliées par défaut, documents dépliés ; le choix est gardé d'un site à l'autre */
-var etatBlocs = { carac: false, bail: false, echeances: false, docs: true, assist: false };
+var etatBlocs = { export: false, carac: false, bail: false, echeances: false, docs: true, assist: false };
 /* catégories de documents : toutes dépliées par défaut ; le choix est gardé d'un site à l'autre */
 var etatThemes = {};
 function docsTousOuverts() { return THEMES.every(function (t) { return etatThemes[t.titre] !== false; }); }
@@ -1158,9 +1170,248 @@ document.getElementById('fiche').addEventListener('click', function (e) {
     document.querySelector('[data-docs-plier]').outerHTML = boutonDocsPlier();
     return;
   }
+  var ex = e.target.closest('[data-export]');
+  if (ex) { if (!ex.disabled) exporterFiche(SITES[courant], ex.getAttribute('data-bail') === '1', ex.getAttribute('data-export')); return; }
   if (e.target.closest('[data-doc]')) { annoncer('Maquette : aucun document réel. Le téléchargement sécurisé viendra avec la version définitive.'); return; }
   if (e.target.closest('[data-avocat]')) { e.preventDefault(); annoncer('Maquette : les coordonnées de l’avocat seront chargées dans l’administration.'); }
 });
+
+/* ===================== v0.52 : FICHE DU SITE EN PDF, deux versions, et BROUILLON DE MAIL =====================
+   Plan de nommage (OUT.IA.2.1.1 v2, tranché le 29/10/2026) : IDENTIFIANT_000_CODE_AAAAMMJJ.pdf
+   - identifiant du site = COMMUNE en majuscules sans accent + numéro du site dans la commune (RENNES-01) ;
+     dans la version définitive, ce numéro est attribué à la création du site et n'est jamais réattribué ;
+     la maquette le déduit de l'ordre de création ;
+   - code 000 : document produit par ARGOS ;
+   - FICHE : sans les éléments du bail commercial (équipes techniques ou juridiques) ; FICHE-AVEC-BAIL : complète.
+   Le brouillon est un fichier .eml marqué « non envoyé » : Outlook l'ouvre comme un nouveau message,
+   fiche jointe et texte type en place ; il ne reste qu'à choisir le destinataire. */
+function enMajusculesSansAccent(t) {
+  return String(t).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase()
+    .replace(/[^A-Z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+}
+function identifiantSite(s) {
+  var rang = SITES.filter(function (x) { return x.commune === s.commune && x.id <= s.id; }).length;
+  return enMajusculesSansAccent(s.commune) + '-' + ('0' + rang).slice(-2);
+}
+function dateFichier(d) { return d.getFullYear() + ('0' + (d.getMonth() + 1)).slice(-2) + ('0' + d.getDate()).slice(-2); }
+function nomFiche(s, avecBail) { return identifiantSite(s) + '_000_' + (avecBail ? 'FICHE-AVEC-BAIL' : 'FICHE') + '_' + dateFichier(new Date()); }
+
+var IC_PDF = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>';
+var IC_MAIL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg>';
+function blocExport(s) {
+  var b = bail(s);
+  function ligneExport(avec, nom, detail, actif) {
+    var dis = actif ? '' : ' disabled';
+    return '<div class="export-ligne"><span class="nom-export">' + nom + '<small>' + detail + '</small></span>' +
+      '<button type="button" class="btn-export" data-export="pdf" data-bail="' + (avec ? 1 : 0) + '"' + dis + ' aria-label="Télécharger la ' + nom.toLowerCase() + ' en PDF">' + IC_PDF + 'PDF</button>' +
+      '<button type="button" class="btn-export" data-export="mail" data-bail="' + (avec ? 1 : 0) + '"' + dis + ' aria-label="Préparer un mail avec la ' + nom.toLowerCase() + '">' + IC_MAIL + 'Mail</button></div>';
+  }
+  return '<div class="bloc">' + titreBloc('export', 'Fiche du site en PDF') + (etatBlocs.export ? '<div class="contenu-bloc">' : '<div class="contenu-bloc" hidden>') +
+    ligneExport(false, 'Fiche', 'Sans les éléments du bail', true) +
+    ligneExport(true, 'Fiche avec bail', b ? 'Version complète' : 'Aucun bail pour ce site', !!b) +
+    '<div class="note-maquette">Mail : un brouillon à ouvrir dans Outlook, la fiche déjà jointe ; il reste à choisir le destinataire.</div>' +
+  '</div></div>';
+}
+
+/* Texte compatible avec les polices standard du PDF : les espaces fines insécables des nombres deviennent des espaces simples */
+function pdfTexte(t) { return String(t == null ? '' : t).replace(/[\u202F\u2009\u00A0]/g, ' '); }
+var PDF_C = { nuit: [15, 34, 56], canard: [51, 131, 139], fonce: [31, 86, 92], cyan: [109, 213, 220], carmin: [160, 16, 64],
+  orange: [180, 97, 10], doux: [94, 104, 117], texte: [27, 36, 48], trait: [188, 218, 220], filet: [226, 234, 236], lagon: [216, 235, 236] };
+function construirePdf(s, avecBail) {
+  var doc = new window.jspdf.jsPDF({ unit: 'mm', format: 'a4' });
+  var L_ = 210, H_ = 297, M = 18, larg = L_ - 2 * M, y = 0;
+  var maintenant = new Date(), nom = nomFiche(s, avecBail), ident = identifiantSite(s);
+  function couleur(c, quoi) { (quoi === 'fond' ? doc.setFillColor : quoi === 'trait' ? doc.setDrawColor : doc.setTextColor).apply(doc, c); }
+  function police(taille, gras) { doc.setFont('helvetica', gras ? 'bold' : 'normal'); doc.setFontSize(taille); }
+  function place(h) { if (y + h > H_ - 24) { doc.addPage(); enTeteSuite(); } }
+  function enTeteSuite() {
+    couleur(PDF_C.nuit, 'fond'); doc.rect(0, 0, L_, 10, 'F');
+    police(8.5, true); couleur([255, 255, 255]); doc.text('ARGOS', M, 6.6, { charSpace: 0.8 });
+    police(8.5); couleur(PDF_C.cyan); doc.text(pdfTexte('Fiche du site ' + ident), L_ - M, 6.6, { align: 'right' });
+    y = 20;
+  }
+  function section(titre) {
+    place(16);
+    y += 4;
+    police(11.5, true); couleur(PDF_C.fonce); doc.text(pdfTexte(titre), M, y);
+    y += 2.2; couleur(PDF_C.trait, 'trait'); doc.setLineWidth(0.35); doc.line(M, y, L_ - M, y);
+    y += 5.5;
+  }
+  function ligne(libelle, valeur, opt) {
+    opt = opt || {};
+    police(9.5); var lv = doc.splitTextToSize(pdfTexte(valeur), larg - 62);
+    var h = Math.max(1, lv.length) * 4.6 + 2.4;
+    place(h);
+    couleur(PDF_C.doux); doc.text(pdfTexte(libelle), M, y);
+    police(9.5, !!opt.gras); couleur(opt.couleur || PDF_C.texte); doc.text(lv, M + 62, y);
+    y += h - 2.4;
+    couleur(PDF_C.filet, 'trait'); doc.setLineWidth(0.2); doc.line(M, y - 1.6, L_ - M, y - 1.6);
+    y += 2.4;
+  }
+  function note(t) {
+    police(8); var l = doc.splitTextToSize(pdfTexte(t), larg);
+    place(l.length * 3.8 + 1); doc.setFont('helvetica', 'italic'); couleur(PDF_C.doux); doc.text(l, M, y); y += l.length * 3.8 + 1;
+  }
+
+  /* --- En-tête --- */
+  couleur(PDF_C.nuit, 'fond'); doc.rect(0, 0, L_, 26, 'F');
+  couleur(PDF_C.cyan, 'fond'); doc.rect(0, 26, L_, 0.8, 'F');
+  police(19, true); couleur([255, 255, 255]); doc.text('ARGOS', M, 15.5, { charSpace: 2 });
+  police(9); couleur(PDF_C.cyan); doc.text('FIDAL Notaires', M, 21);
+  police(11, true); couleur([255, 255, 255]); doc.text('Fiche du site', L_ - M, 14, { align: 'right' });
+  police(8.5); couleur(PDF_C.cyan); doc.text(pdfTexte(avecBail ? 'Version complète, avec le bail commercial' : 'Version sans les éléments du bail'), L_ - M, 19.5, { align: 'right' });
+
+  /* --- Identité du site --- */
+  y = 40;
+  police(22); couleur(PDF_C.nuit); doc.text(pdfTexte(s.commune), M, y);
+  y += 7;
+  police(11); couleur(PDF_C.doux);
+  var adr = doc.splitTextToSize(pdfTexte(s.rue + ', ' + s.cp + ' ' + s.commune), larg);
+  doc.text(adr, M, y); y += adr.length * 5;
+  couleur(PDF_C.cyan, 'fond'); doc.rect(M, y, 12, 0.8, 'F');
+  y += 6;
+  police(9); couleur(PDF_C.texte);
+  doc.text(pdfTexte('Site ' + ident + '   ·   Référence ' + codeSite(s) + '   ·   Fiche établie le ' + dateLongue(maintenant)), M, y);
+  y += 4;
+
+  /* --- Caractéristiques --- */
+  section('Caractéristiques du bien');
+  ligne('Nature', s.nature);
+  ligne('Parcelles', s.parcelles ? s.parcelles.join(', ') : 'Lecture du cadastre en cours');
+  ligne('Surface cadastrale', s.surface || 'Non lue');
+  ligne('Zonage d’urbanisme', s.zonage || 'Non lu');
+  ligne('Région', s.region);
+
+  /* --- Bail commercial (version complète seulement) --- */
+  if (avecBail) {
+    var b = bail(s);
+    section('Bail commercial');
+    if (!b) ligne('Bail', 'Aucun bail commercial enregistré pour ce site');
+    else {
+      ligne('Signature', dateLongue(b.signature));
+      ligne('Entrée en vigueur', dateLongue(b.entree));
+      ligne('Expiration', dateLongue(b.expiration));
+      ligne('Durée', b.duree);
+      ligne('Faculté de résiliation triennale', b.triennale ? 'Oui' : 'Non');
+      var auj = new Date(); auj.setHours(0, 0, 0, 0);
+      var tri = prochaineTriennale(b, auj);
+      if (!tri) ligne('Prochaine échéance triennale', 'Aucune : bail arrivé à expiration le ' + dateLongue(b.expiration) + ', prolongation tacite à vérifier', { couleur: PDF_C.carmin, gras: true });
+      else {
+        var conge = new Date(tri); conge.setMonth(conge.getMonth() - 6);
+        ligne('Prochaine échéance triennale', dateLongue(tri) + (tri.getTime() === b.expiration.getTime() ? ', à la fin du bail' : ''), { gras: true });
+        if (!b.triennale) ligne('Congé', 'Faculté de résiliation exclue par le bail');
+        else if (conge >= auj) ligne('Congé', 'À délivrer au plus tard le ' + dateLongue(conge), { couleur: PDF_C.fonce, gras: true });
+        else ligne('Congé', 'Délai de six mois dépassé pour cette échéance', { couleur: PDF_C.carmin, gras: true });
+      }
+      var ref = b.trimRef && ILC.valeurs[b.trimRef], der = ILC.valeurs[ILC.dernier];
+      ligne('Indice de référence (ILC)', ref ? ref.toLocaleString('fr-FR', { minimumFractionDigits: 2 }) + ', ' + libTrimestre(b.trimRef) : 'Non disponible');
+      ligne('Dernier indice connu (ILC)', (der ? der.toLocaleString('fr-FR', { minimumFractionDigits: 2 }) : '—') + ', ' + libTrimestre(ILC.dernier) +
+        (ILC.publie ? ', publié par l’Insee le ' + dateLongue(new Date(ILC.publie + 'T12:00:00')) : ''));
+      note('Prochaine échéance triennale calculée au ' + dateLongue(auj) + '. Indices : Insee, série 001532540. Maquette : dates du bail fictives.');
+    }
+  }
+
+  /* --- Échéances (sans celles du bail dans la version sans bail) --- */
+  var ech = echeances(s).filter(function (e) { return avecBail || !/bail|loyer/i.test(e.libelle); });
+  section('Échéances à surveiller');
+  if (!ech.length) ligne('Échéances', 'Aucune échéance enregistrée');
+  ech.forEach(function (e) {
+    ligne(e.libelle, dateLongue(e.date) + (e.texte ? ', ' + e.texte : ''),
+      e.etat === 'echue' ? { couleur: PDF_C.carmin, gras: true } : e.etat === 'proche' ? { couleur: PDF_C.orange, gras: true } : null);
+  });
+  note('Maquette : dates fictives.');
+
+  /* --- Documents disponibles (la catégorie Exploitation, qui porte le bail, est réservée à la version complète) --- */
+  section('Documents disponibles dans ARGOS');
+  THEMES.forEach(function (t) {
+    if (!avecBail && t.titre === 'Exploitation') return;
+    var v;
+    if (t.plan) v = 'Plan cadastral colorisé';
+    else v = (!t.docs.length || (t.titre === 'Exploitation' && s.id % 3 === 2)) ? 'Aucun document à ce stade' : t.docs.join(', ');
+    ligne(t.titre, v);
+  });
+
+  /* --- Interlocuteurs --- */
+  section('Vos interlocuteurs pour ce site');
+  DOMAINES.forEach(function (d) {
+    if (d.cle === 'notaire') ligne(d.titre, NOTAIRE.nom + ', ' + NOTAIRE.role + ', ' + NOTAIRE.courriel);
+    else ligne(d.titre, d.avocat + ', ' + AVOCATS[s.region].bureau);
+  });
+  ligne('Référence à rappeler', codeSite(s) + ' (site ' + ident + ')');
+
+  /* --- Pied de page sur chaque feuille --- */
+  var n = doc.getNumberOfPages();
+  for (var p = 1; p <= n; p++) {
+    doc.setPage(p);
+    couleur(PDF_C.trait, 'trait'); doc.setLineWidth(0.3); doc.line(M, H_ - 17, L_ - M, H_ - 17);
+    police(7.5); couleur(PDF_C.doux);
+    doc.text(doc.splitTextToSize(pdfTexte('Fiche établie par ARGOS, FIDAL Notaires, à partir de la documentation dont dispose le cabinet à cette date. Elle ne garantit pas qu’aucune pièce ne manque et ne constitue pas un audit.'), larg - 22), M, H_ - 13);
+    doc.text(p + ' / ' + n, L_ - M, H_ - 13, { align: 'right' });
+    couleur(PDF_C.carmin); doc.text(pdfTexte('Maquette · données fictives   ·   ' + nom + '.pdf'), M, H_ - 6.5);
+  }
+  doc.setProperties({ title: nom, subject: 'Fiche du site ' + ident, author: 'FIDAL Notaires', creator: 'ARGOS' });
+  return doc;
+}
+
+/* Fichier téléchargé par le navigateur */
+function telecharger(blob, nom) {
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = nom;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(function () { URL.revokeObjectURL(a.href); }, 4000);
+}
+function base64Utf8(t) { return btoa(unescape(encodeURIComponent(t))); }
+function coupe76(t) { return t.replace(/.{1,76}/g, '$&\r\n').replace(/\r\n$/, ''); }
+/* Brouillon .eml : en-tête « X-Unsent » (Outlook l'ouvre en message à envoyer), texte type et fiche jointe */
+function brouillonFiche(s, avecBail, doc) {
+  var nom = nomFiche(s, avecBail), ident = identifiantSite(s);
+  var objet = 'Fiche du site ' + s.commune + ', ' + s.rue + ' (' + ident + ')';
+  var corps = 'Bonjour,\r\n\r\n' +
+    'Vous trouverez ci-joint la fiche du site de ' + s.commune + ', ' + s.rue + ', ' + s.cp + ' ' + s.commune + ', ' +
+    (avecBail ? 'avec les éléments du bail commercial.' : 'sans les éléments du bail commercial.') + '\r\n\r\n' +
+    'Elle a été établie le ' + dateLongue(new Date()) + ' à partir de la documentation dont dispose FIDAL Notaires à cette date.\r\n\r\n' +
+    'Bien cordialement,\r\n';
+  var bd = 'ARGOS-' + Date.now().toString(36);
+  var eml = [
+    'X-Unsent: 1',
+    'Subject: =?UTF-8?B?' + base64Utf8(objet) + '?=',
+    'MIME-Version: 1.0',
+    'Content-Type: multipart/mixed; boundary="' + bd + '"',
+    '',
+    '--' + bd,
+    'Content-Type: text/plain; charset="utf-8"',
+    'Content-Transfer-Encoding: base64',
+    '',
+    coupe76(base64Utf8(corps)),
+    '--' + bd,
+    'Content-Type: application/pdf; name="' + nom + '.pdf"',
+    'Content-Transfer-Encoding: base64',
+    'Content-Disposition: attachment; filename="' + nom + '.pdf"',
+    '',
+    coupe76(btoa(doc.output())),
+    '--' + bd + '--',
+    ''
+  ].join('\r\n');
+  return new Blob([eml], { type: 'message/rfc822' });
+}
+function exporterFiche(s, avecBail, mode) {
+  if (!s) return;
+  if (avecBail && !bail(s)) { annoncer('Aucun bail pour ce site : seule la fiche sans bail est disponible.'); return; }
+  if (!window.jspdf || !window.jspdf.jsPDF) { annoncer('Le module PDF ne s’est pas chargé. Rechargez la page, puis réessayez.'); return; }
+  try {
+    var doc = construirePdf(s, avecBail), nom = nomFiche(s, avecBail);
+    if (mode === 'mail') {
+      telecharger(brouillonFiche(s, avecBail, doc), nom + '.eml');
+      annoncer('Brouillon prêt : ouvrez le fichier ' + nom + '.eml, la fiche y est jointe. Il reste à choisir le destinataire.');
+    } else {
+      telecharger(doc.output('blob'), nom + '.pdf');
+      annoncer('Fiche téléchargée : ' + nom + '.pdf');
+    }
+  } catch (err) {
+    annoncer('La fiche n’a pas pu être produite. Rechargez la page, puis réessayez.');
+    if (window.console) console.error(err);
+  }
+}
 
 /* ---------- Vue d'accueil : aucun site choisi, carte cadrée au mieux sur l'ensemble du patrimoine (v0.29, remplace Notre-Dame) ---------- */
 function cadrerEnsemble(anime) {
