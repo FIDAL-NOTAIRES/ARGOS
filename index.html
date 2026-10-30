@@ -469,7 +469,7 @@ body.charge-cartes .carte-zone,body.charge-cartes .incrustations{opacity:0}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/4.7.1/maplibre-gl.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script>
-/* ===================== ARGOS · maquette v0.55 · clients et documents fictifs, parcelles réelles lues au cadastre ===================== */
+/* ===================== ARGOS · maquette v0.56 · clients et documents fictifs, parcelles réelles lues au cadastre ===================== */
 var MISE_A_JOUR = 'octobre 2026';
 
 var NOTAIRE = {
@@ -1228,7 +1228,7 @@ function construirePdf(s, avecBail, plans) {
   /* v0.55 : tout tient sur une seule page — rubriques serrées, informations sur deux colonnes */
   function section(titre) {
     y += 3.5;
-    police(10, true); couleur(PDF_C.fonce); doc.text(pdfTexte(titre), M, y);
+    police(10, true); couleur(PDF_C.nuit); doc.text(pdfTexte(titre), M, y);
     y += 1.6; couleur(PDF_C.trait, 'trait'); doc.setLineWidth(0.3); doc.line(M, y, L_ - M, y);
     y += 4.4;
   }
@@ -1261,15 +1261,15 @@ function construirePdf(s, avecBail, plans) {
     return h;
   }
 
-  /* --- Bandeau bleu : commune et adresse --- */
-  couleur(PDF_C.nuit, 'fond'); doc.rect(0, 0, L_, 22, 'F');
-  couleur(PDF_C.cyan, 'fond'); doc.rect(0, 22, L_, 0.7, 'F');
-  police(10.5, true); couleur([255, 255, 255]); doc.text('Fiche du site', L_ - M, 11, { align: 'right' });
-  police(8); couleur(PDF_C.cyan); doc.text(pdfTexte(avecBail ? 'Version avec le bail commercial' : 'Version sans les éléments du bail'), L_ - M, 16, { align: 'right' });
-  police(16, true); couleur([255, 255, 255]); doc.text(doc.splitTextToSize(pdfTexte(s.commune), larg - 62)[0], M, 11.5);
-  police(9); couleur(PDF_C.cyan); doc.text(doc.splitTextToSize(pdfTexte(adresse), larg - 62)[0], M, 17);
-  y = 29;
-  police(8.3); couleur(PDF_C.texte);
+  /* --- v0.56 : en-tête BLANC, pensé pour l'impression chez le client (plus d'aplat bleu nuit) :
+     commune en grand, adresse dessous, filet bleu canard ; à droite, la nature du document et sa version --- */
+  police(17, true); couleur(PDF_C.nuit); doc.text(doc.splitTextToSize(pdfTexte(s.commune), larg - 60)[0], M, 16);
+  police(9.5); couleur(PDF_C.doux); doc.text(doc.splitTextToSize(pdfTexte(adresse), larg - 60)[0], M, 22);
+  police(10, true); couleur(PDF_C.nuit); doc.text('Fiche du site', L_ - M, 16, { align: 'right' });
+  police(8); couleur(PDF_C.fonce); doc.text(pdfTexte(avecBail ? 'Version avec le bail commercial' : 'Version sans les éléments du bail'), L_ - M, 22, { align: 'right' });
+  couleur(PDF_C.canard, 'trait'); doc.setLineWidth(0.6); doc.line(M, 26, L_ - M, 26);
+  y = 31.5;
+  police(8); couleur(PDF_C.doux);
   doc.text(pdfTexte('Site ' + ident + '   ·   Référence ' + codeSite(s) + '   ·   Fiche établie le ' + dateLongue(maintenant)), M, y);
   y += 1;
 
