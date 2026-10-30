@@ -469,7 +469,7 @@ body.charge-cartes .carte-zone,body.charge-cartes .incrustations{opacity:0}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/4.7.1/maplibre-gl.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script>
-/* ===================== ARGOS · maquette v0.56 · clients et documents fictifs, parcelles réelles lues au cadastre ===================== */
+/* ===================== ARGOS · maquette v0.57 · clients et documents fictifs, parcelles réelles lues au cadastre ===================== */
 var MISE_A_JOUR = 'octobre 2026';
 
 var NOTAIRE = {
@@ -1261,22 +1261,28 @@ function construirePdf(s, avecBail, plans) {
     return h;
   }
 
-  /* --- v0.56 : en-tête BLANC, pensé pour l'impression chez le client (plus d'aplat bleu nuit) :
-     commune en grand, adresse dessous, filet bleu canard ; à droite, la nature du document et sa version --- */
-  police(17, true); couleur(PDF_C.nuit); doc.text(doc.splitTextToSize(pdfTexte(s.commune), larg - 60)[0], M, 16);
-  police(9.5); couleur(PDF_C.doux); doc.text(doc.splitTextToSize(pdfTexte(adresse), larg - 60)[0], M, 22);
-  police(10, true); couleur(PDF_C.nuit); doc.text('Fiche du site', L_ - M, 16, { align: 'right' });
-  police(8); couleur(PDF_C.fonce); doc.text(pdfTexte(avecBail ? 'Version avec le bail commercial' : 'Version sans les éléments du bail'), L_ - M, 22, { align: 'right' });
-  couleur(PDF_C.canard, 'trait'); doc.setLineWidth(0.6); doc.line(M, 26, L_ - M, 26);
-  y = 31.5;
-  police(8); couleur(PDF_C.doux);
-  doc.text(pdfTexte('Site ' + ident + '   ·   Référence ' + codeSite(s) + '   ·   Fiche établie le ' + dateLongue(maintenant)), M, y);
-  y += 1;
+  /* --- v0.57 : TOUT L'EN-TÊTE AU-DESSUS DU FILET.
+     À gauche, le nom du site et son adresse disposés comme sur une enveloppe (nom, voie, code postal et COMMUNE en capitales) ;
+     à droite, le reste : nature du document, version, identifiant, référence et date --- */
+  var env = lignesEnveloppe(s), yg = 13;
+  police(12.5, true); couleur(PDF_C.nuit); doc.text(doc.splitTextToSize(pdfTexte(env[0]), larg - 70)[0], M, yg);
+  police(9.5); couleur(PDF_C.texte);
+  env.slice(1).forEach(function (l) { yg += 4.6; doc.text(doc.splitTextToSize(pdfTexte(l), larg - 70)[0], M, yg); });
+  var droite = [
+    ['Fiche du site', 10, true, PDF_C.nuit],
+    [avecBail ? 'Version avec le bail commercial' : 'Version sans les éléments du bail', 8, false, PDF_C.fonce],
+    ['Site ' + ident, 8, false, PDF_C.doux],
+    ['Référence ' + codeSite(s), 8, false, PDF_C.doux],
+    ['Établie le ' + dateLongue(maintenant), 8, false, PDF_C.doux]
+  ], yd = 13;
+  droite.forEach(function (d, k) { police(d[1], d[2]); couleur(d[3]); doc.text(pdfTexte(d[0]), L_ - M, yd, { align: 'right' }); yd += k === 0 ? 4.8 : 4; });
+  var yFilet = Math.max(yg, yd - 4) + 3.2;
+  couleur(PDF_C.canard, 'trait'); doc.setLineWidth(0.6); doc.line(M, yFilet, L_ - M, yFilet);
+  y = yFilet - 1.5;
 
   /* --- 1. Caractéristiques --- */
   section('Caractéristiques du site');
   grille([
-    { lib: 'Adresse', val: adresse, plein: true },
     { lib: 'Nature', val: s.nature },
     { lib: 'Région', val: s.region },
     { lib: 'Parcelles', val: s.parcelles ? s.parcelles.join(', ') : 'Lecture en cours' },
@@ -1425,6 +1431,14 @@ function echelleEtNord(ctx, cad, haut, lat) {
   ctx.fillStyle = '#1B2430'; ctx.beginPath(); ctx.moveTo(nx, ny + 2); ctx.lineTo(nx + 10, ny + 30); ctx.lineTo(nx, ny + 24); ctx.lineTo(nx - 10, ny + 30); ctx.closePath(); ctx.fill();
   ctx.font = '700 15px "Segoe UI", Arial, sans-serif'; ctx.fillText('N', nx - 5, ny + 44);
 }
+/* nom du site puis adresse « comme sur une enveloppe » : une ligne par élément de voie, code postal et commune en capitales sans accent.
+   Le nom est le nom de groupe saisi dans l'administration ; la maquette n'en a pas et prend la nature du bien */
+function lignesEnveloppe(s) {
+  var l = [s.groupe || s.nature];
+  String(s.rue).split(',').forEach(function (p) { p = p.trim(); if (p) l.push(p.charAt(0).toUpperCase() + p.slice(1)); });
+  l.push(s.cp + ' ' + s.commune.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase());
+  return l;
+}
 function nouvelleToile(haut) {
   haut = haut || PLAN_H;
   var toile = document.createElement('canvas'); toile.width = PLAN_L; toile.height = haut;
@@ -1433,6 +1447,17 @@ function nouvelleToile(haut) {
 }
 function finirPlan(t, titre, legende) { signerPlan(t.ctx, t.h); return { titre: titre, img: t.toile.toDataURL('image/jpeg', 0.86), legende: legende || '', ratio: t.h / PLAN_L }; }
 function planCadastre(s) {
+  /* v0.57 : la fiche reprend le PLAN DU SITE produit dans PAINT (extrait officiel de cadastre.gouv colorié),
+     déposé pour chaque site dans l'administration (s.planPaint) ; à défaut, reconstitution provisoire ci-dessous */
+  if (s.planPaint) return chargerImage(s.planPaint).then(function (im) {
+    if (!im) return planReconstitue(s);
+    var t = nouvelleToile(PLAN_H_CADASTRE), k = Math.min(PLAN_L / im.width, PLAN_H_CADASTRE / im.height);
+    t.ctx.drawImage(im, (PLAN_L - im.width * k) / 2, (PLAN_H_CADASTRE - im.height * k) / 2, im.width * k, im.height * k);
+    return { titre: 'Extrait du plan cadastral', img: t.toile.toDataURL('image/jpeg', 0.9), legende: 'Source : cadastre.gouv.fr, plan colorié dans PAINT', ratio: PLAN_H_CADASTRE / PLAN_L };
+  });
+  return planReconstitue(s);
+}
+function planReconstitue(s) {
   /* v0.55 : EXTRAIT CADASTRAL — cadré sur la parcelle et ses voisines immédiates, trait noir sur fond blanc,
      numéros des parcelles voisines lisibles, échelle graphique et flèche du nord */
   var t = nouvelleToile(PLAN_H_CADASTRE), cad = cadragePlan(formes.carte[s.id].getBounds().pad(0.32), PLAN_H_CADASTRE);
@@ -1441,7 +1466,7 @@ function planCadastre(s) {
     if (!ok) return { titre: titre, img: null, absent: 'Le plan cadastral n’a pas répondu.' };
     tracerParcelle(t.ctx, cad, s, { trait: '#A01040', epaisseur: 4, fond: 'rgba(160,16,64,.16)' });
     echelleEtNord(t.ctx, cad, PLAN_H_CADASTRE, formes.carte[s.id].getBounds().getCenter().lat);
-    return finirPlan(t, titre, s.parcelles ? 'Parcelle' + (s.parcelles.length > 1 ? 's ' : ' ') + s.parcelles.join(', ') + (s.surface ? ', ' + s.surface : '') : '');
+    return finirPlan(t, titre + ' (provisoire)', 'en attendant le plan PAINT du site' + (s.parcelles ? ' · parcelle' + (s.parcelles.length > 1 ? 's ' : ' ') + s.parcelles.join(', ') : ''));
   });
 }
 function planAerien(s) {
