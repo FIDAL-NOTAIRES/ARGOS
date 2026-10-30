@@ -469,7 +469,7 @@ body.charge-cartes .carte-zone,body.charge-cartes .incrustations{opacity:0}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/4.7.1/maplibre-gl.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script>
-/* ===================== ARGOS · maquette v0.54 · clients et documents fictifs, parcelles réelles lues au cadastre ===================== */
+/* ===================== ARGOS · maquette v0.55 · clients et documents fictifs, parcelles réelles lues au cadastre ===================== */
 var MISE_A_JOUR = 'octobre 2026';
 
 var NOTAIRE = {
@@ -1220,137 +1220,122 @@ var PDF_C = { nuit: [15, 34, 56], canard: [51, 131, 139], fonce: [31, 86, 92], c
   orange: [180, 97, 10], doux: [94, 104, 117], texte: [27, 36, 48], trait: [188, 218, 220], filet: [226, 234, 236], lagon: [216, 235, 236] };
 function construirePdf(s, avecBail, plans) {
   var doc = new window.jspdf.jsPDF({ unit: 'mm', format: 'a4' });
-  var L_ = 210, H_ = 297, M = 18, larg = L_ - 2 * M, y = 0;
+  var L_ = 210, H_ = 297, M = 16, larg = L_ - 2 * M, y = 0;
   var maintenant = new Date(), nom = nomFiche(s, avecBail), ident = identifiantSite(s);
   var adresse = s.rue + ', ' + s.cp + ' ' + s.commune;
   function couleur(c, quoi) { (quoi === 'fond' ? doc.setFillColor : quoi === 'trait' ? doc.setDrawColor : doc.setTextColor).apply(doc, c); }
   function police(taille, gras) { doc.setFont('helvetica', gras ? 'bold' : 'normal'); doc.setFontSize(taille); }
-  function place(h) { if (y + h > H_ - 24) { doc.addPage(); enTeteSuite(); } }
-  /* pages suivantes : bandeau mince, commune et adresse à gauche, identifiant du site à droite */
-  function enTeteSuite() {
-    couleur(PDF_C.nuit, 'fond'); doc.rect(0, 0, L_, 10, 'F');
-    police(8.5); couleur(PDF_C.cyan); doc.text(pdfTexte('Fiche du site ' + ident), L_ - M, 6.6, { align: 'right' });
-    var g = doc.splitTextToSize(pdfTexte(adresse), larg - 50)[0];
-    police(8.5, true); couleur([255, 255, 255]); doc.text(g, M, 6.6);
-    y = 20;
-  }
+  /* v0.55 : tout tient sur une seule page — rubriques serrées, informations sur deux colonnes */
   function section(titre) {
-    place(16);
-    y += 4;
-    police(11.5, true); couleur(PDF_C.fonce); doc.text(pdfTexte(titre), M, y);
-    y += 2.2; couleur(PDF_C.trait, 'trait'); doc.setLineWidth(0.35); doc.line(M, y, L_ - M, y);
-    y += 5.5;
+    y += 3.5;
+    police(10, true); couleur(PDF_C.fonce); doc.text(pdfTexte(titre), M, y);
+    y += 1.6; couleur(PDF_C.trait, 'trait'); doc.setLineWidth(0.3); doc.line(M, y, L_ - M, y);
+    y += 4.4;
   }
-  function ligne(libelle, valeur, opt) {
-    opt = opt || {};
-    police(9.5); var lv = doc.splitTextToSize(pdfTexte(valeur), larg - 62);
-    var h = Math.max(1, lv.length) * 4.6 + 2.4;
-    place(h);
-    couleur(PDF_C.doux); doc.text(pdfTexte(libelle), M, y);
-    police(9.5, !!opt.gras); couleur(opt.couleur || PDF_C.texte); doc.text(lv, M + 62, y);
-    y += h - 2.4;
-    couleur(PDF_C.filet, 'trait'); doc.setLineWidth(0.2); doc.line(M, y - 1.6, L_ - M, y - 1.6);
-    y += 2.4;
-  }
-  function note(t) {
-    police(8); var l = doc.splitTextToSize(pdfTexte(t), larg);
-    place(l.length * 3.8 + 1); doc.setFont('helvetica', 'italic'); couleur(PDF_C.doux); doc.text(l, M, y); y += l.length * 3.8 + 1;
+  /* éléments { lib, val, plein, couleur, gras } ; plein = sur toute la largeur, sinon deux par ligne */
+  function grille(elements) {
+    var cw = (larg - 8) / 2, lab = 31, i = 0;
+    function cellule(e, x, w) {
+      police(8.3); couleur(PDF_C.doux); doc.text(pdfTexte(e.lib), x, y);
+      police(8.3, !!e.gras); couleur(e.couleur || PDF_C.texte);
+      var l = doc.splitTextToSize(pdfTexte(e.val), w - lab); doc.text(l, x + lab, y); return l.length;
+    }
+    while (i < elements.length) {
+      var a = elements[i], b = !a.plein && elements[i + 1] && !elements[i + 1].plein ? elements[i + 1] : null;
+      var n = a.plein ? cellule(a, M, larg) : Math.max(cellule(a, M, cw), b ? cellule(b, M + cw + 8, cw) : 1);
+      y += (n - 1) * 3.7 + 5;
+      couleur(PDF_C.filet, 'trait'); doc.setLineWidth(0.18); doc.line(M, y - 3.4, L_ - M, y - 3.4);
+      i += b ? 2 : 1;
+    }
   }
   function image(p, x, w, ratio) {
     var h = w * ratio;
     if (p && p.img) doc.addImage(p.img, 'JPEG', x, y, w, h);
     else {
       couleur([238, 243, 248], 'fond'); doc.rect(x, y, w, h, 'F');
-      police(8.5); couleur(PDF_C.doux); doc.text(doc.splitTextToSize(pdfTexte((p && p.absent) || 'Plan indisponible'), w - 10), x + w / 2, y + h / 2, { align: 'center' });
+      police(8); couleur(PDF_C.doux); doc.text(doc.splitTextToSize(pdfTexte((p && p.absent) || 'Plan indisponible'), w - 10), x + w / 2, y + h / 2, { align: 'center' });
     }
     couleur(PDF_C.trait, 'trait'); doc.setLineWidth(0.2); doc.rect(x, y, w, h);
-    police(8.5, true); couleur(PDF_C.nuit); doc.text(pdfTexte(p ? p.titre : ''), x, y + h + 4.2);
-    if (p && p.legende) { police(7.5); couleur(PDF_C.doux); doc.text(doc.splitTextToSize(pdfTexte(p.legende), w)[0], x, y + h + 7.8); }
+    police(8, true); couleur(PDF_C.nuit); var t = pdfTexte(p ? p.titre : ''); doc.text(t, x, y + h + 3.8);
+    if (p && p.legende) { var lt = doc.getTextWidth(t) + 3; police(7.3); couleur(PDF_C.doux); doc.text(doc.splitTextToSize(pdfTexte(p.legende), w - lt)[0], x + lt, y + h + 3.8); }
     return h;
   }
 
-  /* --- v0.54 : bandeau bleu = commune et adresse du site (ni ARGOS ni FIDAL Notaires en tête) --- */
-  couleur(PDF_C.nuit, 'fond'); doc.rect(0, 0, L_, 26, 'F');
-  couleur(PDF_C.cyan, 'fond'); doc.rect(0, 26, L_, 0.8, 'F');
-  police(11, true); couleur([255, 255, 255]); doc.text('Fiche du site', L_ - M, 13, { align: 'right' });
-  police(8.5); couleur(PDF_C.cyan); doc.text(pdfTexte(avecBail ? 'Version avec le bail commercial' : 'Version sans les éléments du bail'), L_ - M, 18.5, { align: 'right' });
-  police(18, true); couleur([255, 255, 255]); doc.text(doc.splitTextToSize(pdfTexte(s.commune), larg - 62)[0], M, 13);
-  police(9.5); couleur(PDF_C.cyan); doc.text(doc.splitTextToSize(pdfTexte(s.rue + ', ' + s.cp + ' ' + s.commune), larg - 62)[0], M, 19.5);
-  y = 35;
-  police(9); couleur(PDF_C.texte);
+  /* --- Bandeau bleu : commune et adresse --- */
+  couleur(PDF_C.nuit, 'fond'); doc.rect(0, 0, L_, 22, 'F');
+  couleur(PDF_C.cyan, 'fond'); doc.rect(0, 22, L_, 0.7, 'F');
+  police(10.5, true); couleur([255, 255, 255]); doc.text('Fiche du site', L_ - M, 11, { align: 'right' });
+  police(8); couleur(PDF_C.cyan); doc.text(pdfTexte(avecBail ? 'Version avec le bail commercial' : 'Version sans les éléments du bail'), L_ - M, 16, { align: 'right' });
+  police(16, true); couleur([255, 255, 255]); doc.text(doc.splitTextToSize(pdfTexte(s.commune), larg - 62)[0], M, 11.5);
+  police(9); couleur(PDF_C.cyan); doc.text(doc.splitTextToSize(pdfTexte(adresse), larg - 62)[0], M, 17);
+  y = 29;
+  police(8.3); couleur(PDF_C.texte);
   doc.text(pdfTexte('Site ' + ident + '   ·   Référence ' + codeSite(s) + '   ·   Fiche établie le ' + dateLongue(maintenant)), M, y);
-  y += 3;
+  y += 1;
 
-  /* --- 1. Caractéristiques du site --- */
+  /* --- 1. Caractéristiques --- */
   section('Caractéristiques du site');
-  ligne('Adresse', adresse);
-  ligne('Nature', s.nature);
-  ligne('Parcelles', s.parcelles ? s.parcelles.join(', ') : 'Lecture du cadastre en cours');
-  ligne('Surface cadastrale', s.surface || 'Non lue');
-  ligne('Zonage d’urbanisme', s.zonage || 'Non lu');
-  ligne('Région', s.region);
+  grille([
+    { lib: 'Adresse', val: adresse, plein: true },
+    { lib: 'Nature', val: s.nature },
+    { lib: 'Région', val: s.region },
+    { lib: 'Parcelles', val: s.parcelles ? s.parcelles.join(', ') : 'Lecture en cours' },
+    { lib: 'Surface cadastrale', val: s.surface || 'Non lue' },
+    { lib: 'Zonage d’urbanisme', val: s.zonage || 'Non lu', plein: true }
+  ]);
 
   /* --- Bail commercial : version avec bail seulement --- */
   if (avecBail) {
     var b = bail(s);
     section('Bail commercial');
-    if (!b) ligne('Bail', 'Aucun bail commercial enregistré pour ce site');
+    if (!b) grille([{ lib: 'Bail', val: 'Aucun bail commercial enregistré pour ce site', plein: true }]);
     else {
-      ligne('Signature', dateLongue(b.signature));
-      ligne('Entrée en vigueur', dateLongue(b.entree));
-      ligne('Expiration', dateLongue(b.expiration));
-      ligne('Durée', b.duree);
-      ligne('Faculté de résiliation triennale', b.triennale ? 'Oui' : 'Non');
       var auj = new Date(); auj.setHours(0, 0, 0, 0);
-      var tri = prochaineTriennale(b, auj);
-      if (!tri) ligne('Prochaine échéance triennale', 'Aucune : bail arrivé à expiration le ' + dateLongue(b.expiration) + ', prolongation tacite à vérifier', { couleur: PDF_C.carmin, gras: true });
+      var tri = prochaineTriennale(b, auj), ref = b.trimRef && ILC.valeurs[b.trimRef], der = ILC.valeurs[ILC.dernier];
+      var el = [
+        { lib: 'Signature', val: dateLongue(b.signature) }, { lib: 'Entrée en vigueur', val: dateLongue(b.entree) },
+        { lib: 'Expiration', val: dateLongue(b.expiration) }, { lib: 'Durée', val: b.duree },
+        { lib: 'Résiliation triennale', val: b.triennale ? 'Oui' : 'Non' }
+      ];
+      if (!tri) el.push({ lib: 'Échéance triennale', val: 'Aucune, prolongation tacite à vérifier', couleur: PDF_C.carmin, gras: true });
       else {
+        el.push({ lib: 'Échéance triennale', val: dateLongue(tri), gras: true });
         var conge = new Date(tri); conge.setMonth(conge.getMonth() - 6);
-        ligne('Prochaine échéance triennale', dateLongue(tri) + (tri.getTime() === b.expiration.getTime() ? ', à la fin du bail' : ''), { gras: true });
-        if (!b.triennale) ligne('Congé', 'Faculté de résiliation exclue par le bail');
-        else if (conge >= auj) ligne('Congé', 'À délivrer au plus tard le ' + dateLongue(conge), { couleur: PDF_C.fonce, gras: true });
-        else ligne('Congé', 'Délai de six mois dépassé pour cette échéance', { couleur: PDF_C.carmin, gras: true });
+        el.push(!b.triennale ? { lib: 'Congé', val: 'Exclu par le bail' }
+          : conge >= auj ? { lib: 'Congé', val: 'Au plus tard le ' + dateLongue(conge), couleur: PDF_C.fonce, gras: true }
+          : { lib: 'Congé', val: 'Délai de six mois dépassé', couleur: PDF_C.carmin, gras: true });
       }
-      var ref = b.trimRef && ILC.valeurs[b.trimRef], der = ILC.valeurs[ILC.dernier];
-      ligne('Indice de référence (ILC)', ref ? ref.toLocaleString('fr-FR', { minimumFractionDigits: 2 }) + ', ' + libTrimestre(b.trimRef) : 'Non disponible');
-      ligne('Dernier indice connu (ILC)', (der ? der.toLocaleString('fr-FR', { minimumFractionDigits: 2 }) : '—') + ', ' + libTrimestre(ILC.dernier) +
-        (ILC.publie ? ', publié par l’Insee le ' + dateLongue(new Date(ILC.publie + 'T12:00:00')) : ''));
-      note('Prochaine échéance triennale calculée au ' + dateLongue(auj) + '. Indices : Insee, série 001532540. Maquette : dates du bail fictives.');
+      el.push({ lib: 'Indice de référence', val: ref ? 'ILC ' + ref.toLocaleString('fr-FR', { minimumFractionDigits: 2 }) + ', ' + libTrimestre(b.trimRef) : 'Non disponible' });
+      el.push({ lib: 'Dernier indice', val: 'ILC ' + (der ? der.toLocaleString('fr-FR', { minimumFractionDigits: 2 }) : '—') + ', ' + libTrimestre(ILC.dernier) });
+      grille(el);
     }
   }
 
-  /* --- 2. Les trois plans : cadastre en grand, puis vue aérienne et situation dans la commune côte à côte --- */
+  /* --- 2. Les trois plans : extrait cadastral au centre, puis vue aérienne et situation dans la commune côte à côte --- */
   if (plans) {
-    var col = (larg - 6) / 2, rG = PLAN_H_CADASTRE / PLAN_L, rP = PLAN_H / PLAN_L, hGrand = larg * rG, hPetit = col * rP;
-    /* les trois plans restent ensemble sur la même page */
-    place(16 + hGrand + 12 + hPetit + 12);
+    var col = (larg - 6) / 2, rC = PLAN_H_CADASTRE / PLAN_L, rP = PLAN_H / PLAN_L, lC = 124;
     section('Plans du site');
-    y += image(plans.cadastre, M, larg, rG) + 12;
+    y += image(plans.cadastre, M + (larg - lC) / 2, lC, rC) + 7.5;
     image(plans.aerien, M, col, rP);
     image(plans.commune, M + col + 6, col, rP);
-    y += hPetit + 12;
+    y += col * rP + 7;
   }
 
   /* --- 3. Liste des pièces (la catégorie Exploitation, qui porte le bail, est réservée à la version avec bail) --- */
   section('Liste des pièces disponibles');
-  THEMES.forEach(function (t) {
-    if (!avecBail && t.titre === 'Exploitation') return;
+  grille(THEMES.filter(function (t) { return avecBail || t.titre !== 'Exploitation'; }).map(function (t) {
     var v;
     if (t.plan) v = 'Plan cadastral colorisé';
     else v = (!t.docs.length || (t.titre === 'Exploitation' && s.id % 3 === 2)) ? 'Aucun document à ce stade' : t.docs.join(', ');
-    ligne(t.titre, v);
-  });
+    return { lib: t.titre, val: v };
+  }));
 
-  /* --- Pied de page sur chaque feuille --- */
-  var n = doc.getNumberOfPages();
-  for (var p = 1; p <= n; p++) {
-    doc.setPage(p);
-    couleur(PDF_C.trait, 'trait'); doc.setLineWidth(0.3); doc.line(M, H_ - 17, L_ - M, H_ - 17);
-    police(7.5); couleur(PDF_C.doux);
-    doc.text(doc.splitTextToSize(pdfTexte('Fiche établie par ARGOS, FIDAL Notaires, à partir de la documentation dont dispose le cabinet à cette date. Elle ne garantit pas qu’aucune pièce ne manque et ne constitue pas un audit.'), larg - 22), M, H_ - 13);
-    doc.text(p + ' / ' + n, L_ - M, H_ - 13, { align: 'right' });
-    couleur(PDF_C.carmin); doc.text(pdfTexte('Maquette · données fictives   ·   ' + nom + '.pdf'), M, H_ - 6.5);
-  }
+  /* --- Pied de page --- */
+  couleur(PDF_C.trait, 'trait'); doc.setLineWidth(0.3); doc.line(M, H_ - 14, L_ - M, H_ - 14);
+  police(7); couleur(PDF_C.doux);
+  doc.text(doc.splitTextToSize(pdfTexte('Fiche établie par ARGOS, FIDAL Notaires, à partir de la documentation dont dispose le cabinet à cette date. Elle ne garantit pas qu’aucune pièce ne manque et ne constitue pas un audit.'), larg), M, H_ - 10.5);
+  couleur(PDF_C.carmin); doc.text(pdfTexte('Maquette · données fictives   ·   ' + nom + '.pdf'), M, H_ - 4.5);
+  doc.__hauteurUtilisee = y;
   doc.setProperties({ title: nom, subject: 'Fiche du site ' + ident, author: 'FIDAL Notaires', creator: 'ARGOS' });
   return doc;
 }
@@ -1359,7 +1344,7 @@ function construirePdf(s, avecBail, plans) {
    Plan cadastral (en grand), vue aérienne actuelle, situation du site dans sa commune (point carmin).
    Les tuiles de la Géoplateforme sont redessinées sur un canevas avec le contour de la parcelle ;
    le contour de la commune vient de geo.api.gouv.fr. Si un fond ne répond pas, la fiche le dit à la place de l'image. */
-var PLAN_L = 1000, PLAN_H = 625, PLAN_H_CADASTRE = 500;
+var PLAN_L = 1000, PLAN_H = 625, PLAN_H_CADASTRE = 580;
 function chargerImage(url) {
   return new Promise(function (res) {
     var im = new Image(), fini = false;
@@ -1424,6 +1409,22 @@ function boiteGeometrie(g) {
   (function parcours(t) { if (typeof t[0] === 'number') { x0 = Math.min(x0, t[0]); x1 = Math.max(x1, t[0]); y0 = Math.min(y0, t[1]); y1 = Math.max(y1, t[1]); } else t.forEach(parcours); })(g.coordinates);
   return L.latLngBounds([y0, x0], [y1, x1]);
 }
+/* échelle graphique (longueur ronde) en bas à gauche, flèche du nord en haut à droite */
+function echelleEtNord(ctx, cad, haut, lat) {
+  var mParPixel = 156543.03392 * Math.cos(lat * Math.PI / 180) / Math.pow(2, cad.zf);
+  var longueurs = [5, 10, 20, 25, 50, 100, 200, 250, 500, 1000], m = longueurs[0];
+  longueurs.forEach(function (v) { if (v / mParPixel <= 230) m = v; });
+  var px = m / mParPixel, x = 22, yb = haut - 26;
+  ctx.fillStyle = 'rgba(255,255,255,.9)'; ctx.fillRect(x - 10, yb - 30, px + 70, 44);
+  ctx.fillStyle = '#1B2430'; ctx.fillRect(x, yb - 4, px, 8);
+  ctx.fillStyle = '#FFFFFF'; ctx.fillRect(x + px / 2, yb - 2, px / 2 - 2, 4);
+  ctx.font = '600 17px "Segoe UI", Arial, sans-serif'; ctx.fillStyle = '#1B2430';
+  ctx.fillText('0', x - 4, yb - 10); ctx.fillText(m + ' m', x + px - 8, yb - 10);
+  var nx = PLAN_L - 48, ny = 26;
+  ctx.fillStyle = 'rgba(255,255,255,.9)'; ctx.beginPath(); ctx.arc(nx, ny + 20, 26, 0, 2 * Math.PI); ctx.fill();
+  ctx.fillStyle = '#1B2430'; ctx.beginPath(); ctx.moveTo(nx, ny + 2); ctx.lineTo(nx + 10, ny + 30); ctx.lineTo(nx, ny + 24); ctx.lineTo(nx - 10, ny + 30); ctx.closePath(); ctx.fill();
+  ctx.font = '700 15px "Segoe UI", Arial, sans-serif'; ctx.fillText('N', nx - 5, ny + 44);
+}
 function nouvelleToile(haut) {
   haut = haut || PLAN_H;
   var toile = document.createElement('canvas'); toile.width = PLAN_L; toile.height = haut;
@@ -1432,11 +1433,14 @@ function nouvelleToile(haut) {
 }
 function finirPlan(t, titre, legende) { signerPlan(t.ctx, t.h); return { titre: titre, img: t.toile.toDataURL('image/jpeg', 0.86), legende: legende || '', ratio: t.h / PLAN_L }; }
 function planCadastre(s) {
-  var t = nouvelleToile(PLAN_H_CADASTRE), cad = cadragePlan(formes.carte[s.id].getBounds().pad(0.7), PLAN_H_CADASTRE);
-  var titre = 'Plan cadastral';
+  /* v0.55 : EXTRAIT CADASTRAL — cadré sur la parcelle et ses voisines immédiates, trait noir sur fond blanc,
+     numéros des parcelles voisines lisibles, échelle graphique et flèche du nord */
+  var t = nouvelleToile(PLAN_H_CADASTRE), cad = cadragePlan(formes.carte[s.id].getBounds().pad(0.32), PLAN_H_CADASTRE);
+  var titre = 'Extrait du plan cadastral';
   return dessinerTuiles(t.ctx, cad, 'CADASTRALPARCELS.PARCELLAIRE_EXPRESS', 'image/png', 'PCI vecteur', 19).then(function (ok) {
     if (!ok) return { titre: titre, img: null, absent: 'Le plan cadastral n’a pas répondu.' };
-    tracerParcelle(t.ctx, cad, s, { trait: '#A01040', epaisseur: 4, fond: 'rgba(160,16,64,.18)' });
+    tracerParcelle(t.ctx, cad, s, { trait: '#A01040', epaisseur: 4, fond: 'rgba(160,16,64,.16)' });
+    echelleEtNord(t.ctx, cad, PLAN_H_CADASTRE, formes.carte[s.id].getBounds().getCenter().lat);
     return finirPlan(t, titre, s.parcelles ? 'Parcelle' + (s.parcelles.length > 1 ? 's ' : ' ') + s.parcelles.join(', ') + (s.surface ? ', ' + s.surface : '') : '');
   });
 }
