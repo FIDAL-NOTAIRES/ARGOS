@@ -469,7 +469,7 @@ body.charge-cartes .carte-zone,body.charge-cartes .incrustations{opacity:0}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/4.7.1/maplibre-gl.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script>
-/* ===================== ARGOS · maquette v0.53 · clients et documents fictifs, parcelles réelles lues au cadastre ===================== */
+/* ===================== ARGOS · maquette v0.54 · clients et documents fictifs, parcelles réelles lues au cadastre ===================== */
 var MISE_A_JOUR = 'octobre 2026';
 
 var NOTAIRE = {
@@ -1222,13 +1222,16 @@ function construirePdf(s, avecBail, plans) {
   var doc = new window.jspdf.jsPDF({ unit: 'mm', format: 'a4' });
   var L_ = 210, H_ = 297, M = 18, larg = L_ - 2 * M, y = 0;
   var maintenant = new Date(), nom = nomFiche(s, avecBail), ident = identifiantSite(s);
+  var adresse = s.rue + ', ' + s.cp + ' ' + s.commune;
   function couleur(c, quoi) { (quoi === 'fond' ? doc.setFillColor : quoi === 'trait' ? doc.setDrawColor : doc.setTextColor).apply(doc, c); }
   function police(taille, gras) { doc.setFont('helvetica', gras ? 'bold' : 'normal'); doc.setFontSize(taille); }
   function place(h) { if (y + h > H_ - 24) { doc.addPage(); enTeteSuite(); } }
+  /* pages suivantes : bandeau mince, commune et adresse à gauche, identifiant du site à droite */
   function enTeteSuite() {
     couleur(PDF_C.nuit, 'fond'); doc.rect(0, 0, L_, 10, 'F');
-    police(8.5, true); couleur([255, 255, 255]); doc.text('ARGOS', M, 6.6, { charSpace: 0.8 });
     police(8.5); couleur(PDF_C.cyan); doc.text(pdfTexte('Fiche du site ' + ident), L_ - M, 6.6, { align: 'right' });
+    var g = doc.splitTextToSize(pdfTexte(adresse), larg - 50)[0];
+    police(8.5, true); couleur([255, 255, 255]); doc.text(g, M, 6.6);
     y = 20;
   }
   function section(titre) {
@@ -1253,37 +1256,41 @@ function construirePdf(s, avecBail, plans) {
     police(8); var l = doc.splitTextToSize(pdfTexte(t), larg);
     place(l.length * 3.8 + 1); doc.setFont('helvetica', 'italic'); couleur(PDF_C.doux); doc.text(l, M, y); y += l.length * 3.8 + 1;
   }
+  function image(p, x, w, ratio) {
+    var h = w * ratio;
+    if (p && p.img) doc.addImage(p.img, 'JPEG', x, y, w, h);
+    else {
+      couleur([238, 243, 248], 'fond'); doc.rect(x, y, w, h, 'F');
+      police(8.5); couleur(PDF_C.doux); doc.text(doc.splitTextToSize(pdfTexte((p && p.absent) || 'Plan indisponible'), w - 10), x + w / 2, y + h / 2, { align: 'center' });
+    }
+    couleur(PDF_C.trait, 'trait'); doc.setLineWidth(0.2); doc.rect(x, y, w, h);
+    police(8.5, true); couleur(PDF_C.nuit); doc.text(pdfTexte(p ? p.titre : ''), x, y + h + 4.2);
+    if (p && p.legende) { police(7.5); couleur(PDF_C.doux); doc.text(doc.splitTextToSize(pdfTexte(p.legende), w)[0], x, y + h + 7.8); }
+    return h;
+  }
 
-  /* --- En-tête --- */
+  /* --- v0.54 : bandeau bleu = commune et adresse du site (ni ARGOS ni FIDAL Notaires en tête) --- */
   couleur(PDF_C.nuit, 'fond'); doc.rect(0, 0, L_, 26, 'F');
   couleur(PDF_C.cyan, 'fond'); doc.rect(0, 26, L_, 0.8, 'F');
-  police(19, true); couleur([255, 255, 255]); doc.text('ARGOS', M, 15.5, { charSpace: 2 });
-  police(9); couleur(PDF_C.cyan); doc.text('FIDAL Notaires', M, 21);
-  police(11, true); couleur([255, 255, 255]); doc.text('Fiche du site', L_ - M, 14, { align: 'right' });
-  police(8.5); couleur(PDF_C.cyan); doc.text(pdfTexte(avecBail ? 'Version complète, avec le bail commercial' : 'Version sans les éléments du bail'), L_ - M, 19.5, { align: 'right' });
-
-  /* --- Identité du site --- */
-  y = 40;
-  police(22); couleur(PDF_C.nuit); doc.text(pdfTexte(s.commune), M, y);
-  y += 7;
-  police(11); couleur(PDF_C.doux);
-  var adr = doc.splitTextToSize(pdfTexte(s.rue + ', ' + s.cp + ' ' + s.commune), larg);
-  doc.text(adr, M, y); y += adr.length * 5;
-  couleur(PDF_C.cyan, 'fond'); doc.rect(M, y, 12, 0.8, 'F');
-  y += 6;
+  police(11, true); couleur([255, 255, 255]); doc.text('Fiche du site', L_ - M, 13, { align: 'right' });
+  police(8.5); couleur(PDF_C.cyan); doc.text(pdfTexte(avecBail ? 'Version avec le bail commercial' : 'Version sans les éléments du bail'), L_ - M, 18.5, { align: 'right' });
+  police(18, true); couleur([255, 255, 255]); doc.text(doc.splitTextToSize(pdfTexte(s.commune), larg - 62)[0], M, 13);
+  police(9.5); couleur(PDF_C.cyan); doc.text(doc.splitTextToSize(pdfTexte(s.rue + ', ' + s.cp + ' ' + s.commune), larg - 62)[0], M, 19.5);
+  y = 35;
   police(9); couleur(PDF_C.texte);
   doc.text(pdfTexte('Site ' + ident + '   ·   Référence ' + codeSite(s) + '   ·   Fiche établie le ' + dateLongue(maintenant)), M, y);
-  y += 4;
+  y += 3;
 
-  /* --- Caractéristiques --- */
-  section('Caractéristiques du bien');
+  /* --- 1. Caractéristiques du site --- */
+  section('Caractéristiques du site');
+  ligne('Adresse', adresse);
   ligne('Nature', s.nature);
   ligne('Parcelles', s.parcelles ? s.parcelles.join(', ') : 'Lecture du cadastre en cours');
   ligne('Surface cadastrale', s.surface || 'Non lue');
   ligne('Zonage d’urbanisme', s.zonage || 'Non lu');
   ligne('Région', s.region);
 
-  /* --- Bail commercial (version complète seulement) --- */
+  /* --- Bail commercial : version avec bail seulement --- */
   if (avecBail) {
     var b = bail(s);
     section('Bail commercial');
@@ -1312,18 +1319,20 @@ function construirePdf(s, avecBail, plans) {
     }
   }
 
-  /* --- Échéances (sans celles du bail dans la version sans bail) --- */
-  var ech = echeances(s).filter(function (e) { return avecBail || !/bail|loyer/i.test(e.libelle); });
-  section('Échéances à surveiller');
-  if (!ech.length) ligne('Échéances', 'Aucune échéance enregistrée');
-  ech.forEach(function (e) {
-    ligne(e.libelle, dateLongue(e.date) + (e.texte ? ', ' + e.texte : ''),
-      e.etat === 'echue' ? { couleur: PDF_C.carmin, gras: true } : e.etat === 'proche' ? { couleur: PDF_C.orange, gras: true } : null);
-  });
-  note('Maquette : dates fictives.');
+  /* --- 2. Les trois plans : cadastre en grand, puis vue aérienne et situation dans la commune côte à côte --- */
+  if (plans) {
+    var col = (larg - 6) / 2, rG = PLAN_H_CADASTRE / PLAN_L, rP = PLAN_H / PLAN_L, hGrand = larg * rG, hPetit = col * rP;
+    /* les trois plans restent ensemble sur la même page */
+    place(16 + hGrand + 12 + hPetit + 12);
+    section('Plans du site');
+    y += image(plans.cadastre, M, larg, rG) + 12;
+    image(plans.aerien, M, col, rP);
+    image(plans.commune, M + col + 6, col, rP);
+    y += hPetit + 12;
+  }
 
-  /* --- Documents disponibles (la catégorie Exploitation, qui porte le bail, est réservée à la version complète) --- */
-  section('Documents disponibles dans ARGOS');
+  /* --- 3. Liste des pièces (la catégorie Exploitation, qui porte le bail, est réservée à la version avec bail) --- */
+  section('Liste des pièces disponibles');
   THEMES.forEach(function (t) {
     if (!avecBail && t.titre === 'Exploitation') return;
     var v;
@@ -1331,34 +1340,6 @@ function construirePdf(s, avecBail, plans) {
     else v = (!t.docs.length || (t.titre === 'Exploitation' && s.id % 3 === 2)) ? 'Aucun document à ce stade' : t.docs.join(', ');
     ligne(t.titre, v);
   });
-
-  /* --- v0.53 : les cinq plans du site, sur une page à part --- */
-  if (plans && plans.length) {
-    doc.addPage(); enTeteSuite();
-    police(11.5, true); couleur(PDF_C.fonce); doc.text('Plans du site', M, y);
-    y += 2.2; couleur(PDF_C.trait, 'trait'); doc.setLineWidth(0.35); doc.line(M, y, L_ - M, y); y += 5;
-    var col = (larg - 6) / 2, hGrand = larg * 0.5, hPetit = col * 0.625;
-    plans.forEach(function (p, k) {
-      var grand = k === 0, w = grand ? larg : col, h = grand ? hGrand : hPetit;
-      var x = grand ? M : M + ((k - 1) % 2) * (col + 6);
-      if (!grand && (k - 1) % 2 === 0 && k > 1) y += hPetit + 15;
-      var yi = grand ? y : y;
-      if (p.img) doc.addImage(p.img, 'JPEG', x, yi, w, h);
-      else {
-        couleur([238, 243, 248], 'fond'); doc.rect(x, yi, w, h, 'F');
-        police(8.5); couleur(PDF_C.doux); doc.text(doc.splitTextToSize(pdfTexte(p.absent || 'Plan indisponible'), w - 10), x + w / 2, yi + h / 2, { align: 'center' });
-      }
-      couleur(PDF_C.trait, 'trait'); doc.setLineWidth(0.2); doc.rect(x, yi, w, h);
-      police(8.5, true); couleur(PDF_C.nuit); doc.text(pdfTexte(p.titre), x, yi + h + 4.2);
-      if (p.legende && p.legende.length) {
-        police(7); couleur(PDF_C.doux);
-        var lg = doc.splitTextToSize(pdfTexte(p.legende.join('   ·   ')), w);
-        if (lg.length > 2) { lg = lg.slice(0, 2); lg[1] = lg[1].replace(/\s*\S*$/, '') + '…'; }
-        doc.text(lg, x, yi + h + 7.8);
-      }
-      if (grand) y += hGrand + 14;
-    });
-  }
 
   /* --- Pied de page sur chaque feuille --- */
   var n = doc.getNumberOfPages();
@@ -1374,11 +1355,11 @@ function construirePdf(s, avecBail, plans) {
   return doc;
 }
 
-/* ===================== v0.53 : LES CINQ PLANS DU SITE POUR LA FICHE PDF =====================
-   Plan de situation (plan IGN), vue aérienne actuelle, vue aérienne des années 1950, zonage d'urbanisme, servitudes.
-   Les tuiles de la Géoplateforme et les zones du Géoportail de l'urbanisme sont redessinées sur un canevas,
-   avec le contour de la parcelle ; si un fond ne répond pas, la fiche le dit à la place de l'image. */
-var PLAN_L = 1000, PLAN_H = 625;
+/* ===================== v0.54 : LES TROIS PLANS DU SITE POUR LA FICHE PDF =====================
+   Plan cadastral (en grand), vue aérienne actuelle, situation du site dans sa commune (point carmin).
+   Les tuiles de la Géoplateforme sont redessinées sur un canevas avec le contour de la parcelle ;
+   le contour de la commune vient de geo.api.gouv.fr. Si un fond ne répond pas, la fiche le dit à la place de l'image. */
+var PLAN_L = 1000, PLAN_H = 625, PLAN_H_CADASTRE = 500;
 function chargerImage(url) {
   return new Promise(function (res) {
     var im = new Image(), fini = false;
@@ -1389,34 +1370,29 @@ function chargerImage(url) {
     im.src = url;
   });
 }
-function urlTuile(couche, format, z, x, y) {
-  return 'https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=' + couche + '&STYLE=normal' +
+function urlTuile(couche, format, style, z, x, y) {
+  return 'https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=' + couche + '&STYLE=' + encodeURIComponent(style) +
     '&TILEMATRIXSET=PM&FORMAT=' + format + '&TILEMATRIX=' + z + '&TILEROW=' + y + '&TILECOL=' + x;
 }
-function cadragePlan(b) {
+function cadragePlan(b, haut) {
+  haut = haut || PLAN_H;
   var crs = L.CRS.EPSG3857, sw = b.getSouthWest(), ne = b.getNorthEast();
   var p1 = crs.latLngToPoint(L.latLng(ne.lat, sw.lng), 0), p2 = crs.latLngToPoint(L.latLng(sw.lat, ne.lng), 0);
-  var zf = Math.min(Math.log2(PLAN_L / (p2.x - p1.x)), Math.log2(PLAN_H / (p2.y - p1.y)), 19);
+  var zf = Math.min(Math.log2(PLAN_L / (p2.x - p1.x)), Math.log2(haut / (p2.y - p1.y)), 19);
   var c = crs.latLngToPoint(b.getCenter(), zf);
-  return { zf: zf, ox: c.x - PLAN_L / 2, oy: c.y - PLAN_H / 2 };
+  return { zf: zf, ox: c.x - PLAN_L / 2, oy: c.y - haut / 2, h: haut };
 }
 function versPixel(lat, lng, cad) { var p = L.CRS.EPSG3857.latLngToPoint(L.latLng(lat, lng), cad.zf); return [p.x - cad.ox, p.y - cad.oy]; }
-function dessinerTuiles(ctx, cad, couche, format, zmax) {
+function dessinerTuiles(ctx, cad, couche, format, style, zmax) {
   var z = Math.min(Math.round(cad.zf), zmax), t = 256 * Math.pow(2, cad.zf - z), travaux = [], reussies = 0;
   for (var x = Math.floor(cad.ox / t); x <= Math.floor((cad.ox + PLAN_L) / t); x++)
-    for (var y = Math.floor(cad.oy / t); y <= Math.floor((cad.oy + PLAN_H) / t); y++)
+    for (var y = Math.floor(cad.oy / t); y <= Math.floor((cad.oy + cad.h) / t); y++)
       (function (x, y) {
-        travaux.push(chargerImage(urlTuile(couche, format, z, x, y)).then(function (im) {
+        travaux.push(chargerImage(urlTuile(couche, format, style, z, x, y)).then(function (im) {
           if (im) { reussies++; ctx.drawImage(im, x * t - cad.ox, y * t - cad.oy, t + 0.6, t + 0.6); }
         }));
       })(x, y);
   return Promise.all(travaux).then(function () { return reussies > 0; });
-}
-/* plan grisé et éclairci, comme dans les vues Urbanisme et Servitudes */
-function griser(ctx) {
-  var im = ctx.getImageData(0, 0, PLAN_L, PLAN_H), d = im.data;
-  for (var i = 0; i < d.length; i += 4) { var g = 0.3 * d[i] + 0.59 * d[i + 1] + 0.11 * d[i + 2], v = 255 - (255 - g) * 0.45; d[i] = d[i + 1] = d[i + 2] = v; }
-  ctx.putImageData(im, 0, 0);
 }
 function anneauxLeaflet(ll) { return (ll.length && ll[0] instanceof L.LatLng) ? [ll] : ll.reduce(function (a, x) { return a.concat(anneauxLeaflet(x)); }, []); }
 function tracerAnneaux(ctx, cad, anneaux) {
@@ -1429,85 +1405,81 @@ function tracerParcelle(ctx, cad, s, style) {
   if (style.fond) { ctx.fillStyle = style.fond; ctx.fill('evenodd'); }
   ctx.lineWidth = style.epaisseur; ctx.strokeStyle = style.trait; ctx.lineJoin = 'round'; ctx.stroke();
 }
-function tracerGeojson(ctx, cad, f, teinte, remplissage) {
-  var g = f.geometry; if (!g) return;
-  ctx.strokeStyle = teinte; ctx.fillStyle = teinte; ctx.lineWidth = 2.5;
-  function anneaux(poly) { return poly.map(function (a) { return a.map(function (c) { return [c[1], c[0]]; }); }); }
-  if (g.type === 'Polygon' || g.type === 'MultiPolygon') {
-    (g.type === 'Polygon' ? [g.coordinates] : g.coordinates).forEach(function (poly) {
-      tracerAnneaux(ctx, cad, anneaux(poly));
-      ctx.globalAlpha = remplissage; ctx.fill('evenodd'); ctx.globalAlpha = 0.95; ctx.stroke(); ctx.globalAlpha = 1;
-    });
-  } else if (g.type === 'LineString' || g.type === 'MultiLineString') {
-    (g.type === 'LineString' ? [g.coordinates] : g.coordinates).forEach(function (l) {
-      ctx.beginPath(); l.forEach(function (c, i) { var q = versPixel(c[1], c[0], cad); i ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1]); }); ctx.stroke();
-    });
-  } else if (g.type === 'Point' || g.type === 'MultiPoint') {
-    (g.type === 'Point' ? [g.coordinates] : g.coordinates).forEach(function (c) {
-      var q = versPixel(c[1], c[0], cad); ctx.beginPath(); ctx.arc(q[0], q[1], 7, 0, 2 * Math.PI); ctx.fill();
-    });
-  }
-}
-function lireGpu(chemin, b) {
-  var poly = encodeURIComponent(JSON.stringify({ type: 'Polygon', coordinates: [[[b.getWest(), b.getSouth()], [b.getEast(), b.getSouth()], [b.getEast(), b.getNorth()], [b.getWest(), b.getNorth()], [b.getWest(), b.getSouth()]]] }));
-  return fetch('https://apicarto.ign.fr/api/gpu/' + chemin + '?geom=' + poly)
-    .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
-    .then(function (g) { return g.features || []; })
-    .catch(function () { return attendre(1200).then(function () { return fetch('https://apicarto.ign.fr/api/gpu/' + chemin + '?geom=' + poly).then(function (r) { return r.ok ? r.json() : { features: [] }; }).then(function (g) { return g.features || []; }).catch(function () { return []; }); }); });
-}
-function signerPlan(ctx) {
+function signerPlan(ctx, haut) {
   ctx.font = '15px "Segoe UI", Arial, sans-serif';
   var t = '© IGN · Géoplateforme', w = ctx.measureText(t).width;
-  ctx.fillStyle = 'rgba(255,255,255,.85)'; ctx.fillRect(PLAN_L - w - 16, PLAN_H - 26, w + 16, 26);
-  ctx.fillStyle = '#1B2430'; ctx.fillText(t, PLAN_L - w - 8, PLAN_H - 8);
+  ctx.fillStyle = 'rgba(255,255,255,.85)'; ctx.fillRect(PLAN_L - w - 16, haut - 26, w + 16, 26);
+  ctx.fillStyle = '#1B2430'; ctx.fillText(t, PLAN_L - w - 8, haut - 8);
 }
-function fabriquerPlan(s, genre) {
-  var toile = document.createElement('canvas'); toile.width = PLAN_L; toile.height = PLAN_H;
-  var ctx = toile.getContext('2d'); ctx.fillStyle = '#FFFFFF'; ctx.fillRect(0, 0, PLAN_L, PLAN_H);
-  var emprise = formes.carte[s.id].getBounds().pad(genre === 'situation' ? 2.5 : 0.8);
-  var cad = cadragePlan(emprise), legende = [];
-  var titres = { situation: 'Plan de situation', aerien: 'Vue aérienne actuelle', ancien: 'Vue aérienne des années 1950', urba: 'Zonage d’urbanisme', sup: 'Servitudes d’utilité publique' };
-  var fond = genre === 'aerien' ? dessinerTuiles(ctx, cad, 'ORTHOIMAGERY.ORTHOPHOTOS', 'image/jpeg', 19)
-    : genre === 'ancien' ? dessinerTuiles(ctx, cad, 'ORTHOIMAGERY.ORTHOPHOTOS.1950-1965', 'image/png', 18)
-    : dessinerTuiles(ctx, cad, 'GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2', 'image/png', 19);
-  return fond.then(function (ok) {
-    if (!ok) return { titre: titres[genre], img: null, absent: genre === 'ancien' ? 'La photographie des années 1950 ne répond pas pour cet endroit.' : 'Le fond de plan n’a pas répondu.' };
-    var calque = Promise.resolve();
-    if (genre === 'urba' || genre === 'sup') {
-      griser(ctx);
-      var b = emprise.pad(0.3);
-      calque = (genre === 'urba' ? lireGpu('zone-urba', b)
-        : lireGpu('assiette-sup-s', b).then(function (a) { return lireGpu('assiette-sup-l', b).then(function (l) { return lireGpu('assiette-sup-p', b).then(function (p) { return a.concat(l, p); }); }); }))
-        .then(function (fs) {
-          var vus = {};
-          fs.forEach(function (f) {
-            var pr = f.properties || {};
-            if (genre === 'urba') {
-              tracerGeojson(ctx, cad, f, couleurZone(f), 0.5);
-              var code = pr.libelle || pr.typezone; if (code && !vus[code]) { vus[code] = 1; legende.push(code + (pr.libelong ? ' : ' + (pr.libelong.length > 55 ? pr.libelong.slice(0, 53) + '…' : pr.libelong) : '')); }
-            } else {
-              tracerGeojson(ctx, cad, f, couleurSup(pr.suptype), 0.14);
-              var cs = String(pr.suptype || '').toUpperCase(), nomS = pr.nomsuplitt || pr.nomass || '';
-              if (cs && !vus[cs + nomS]) { vus[cs + nomS] = 1; legende.push(cs + (nomS ? ' : ' + (nomS.length > 55 ? nomS.slice(0, 53) + '…' : nomS) : '')); }
-            }
-          });
-          if (!fs.length) legende.push(genre === 'urba' ? 'Aucune zone lue au Géoportail de l’urbanisme pour ce secteur' : 'Aucune servitude lue au Géoportail de l’urbanisme pour ce secteur');
+/* contour de la commune du site (geo.api.gouv.fr) ; à défaut, un cadre d'environ 3 km autour du site */
+function contourCommune(s) {
+  var c = formes.carte[s.id].getBounds().getCenter();
+  return fetch('https://geo.api.gouv.fr/communes?lat=' + c.lat + '&lon=' + c.lng + '&fields=nom,contour&format=json')
+    .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+    .then(function (l) { return (l && l[0] && l[0].contour) || null; })
+    .catch(function () { return null; });
+}
+function boiteGeometrie(g) {
+  var x0 = 180, y0 = 90, x1 = -180, y1 = -90;
+  (function parcours(t) { if (typeof t[0] === 'number') { x0 = Math.min(x0, t[0]); x1 = Math.max(x1, t[0]); y0 = Math.min(y0, t[1]); y1 = Math.max(y1, t[1]); } else t.forEach(parcours); })(g.coordinates);
+  return L.latLngBounds([y0, x0], [y1, x1]);
+}
+function nouvelleToile(haut) {
+  haut = haut || PLAN_H;
+  var toile = document.createElement('canvas'); toile.width = PLAN_L; toile.height = haut;
+  var ctx = toile.getContext('2d'); ctx.fillStyle = '#FFFFFF'; ctx.fillRect(0, 0, PLAN_L, haut);
+  return { toile: toile, ctx: ctx, h: haut };
+}
+function finirPlan(t, titre, legende) { signerPlan(t.ctx, t.h); return { titre: titre, img: t.toile.toDataURL('image/jpeg', 0.86), legende: legende || '', ratio: t.h / PLAN_L }; }
+function planCadastre(s) {
+  var t = nouvelleToile(PLAN_H_CADASTRE), cad = cadragePlan(formes.carte[s.id].getBounds().pad(0.7), PLAN_H_CADASTRE);
+  var titre = 'Plan cadastral';
+  return dessinerTuiles(t.ctx, cad, 'CADASTRALPARCELS.PARCELLAIRE_EXPRESS', 'image/png', 'PCI vecteur', 19).then(function (ok) {
+    if (!ok) return { titre: titre, img: null, absent: 'Le plan cadastral n’a pas répondu.' };
+    tracerParcelle(t.ctx, cad, s, { trait: '#A01040', epaisseur: 4, fond: 'rgba(160,16,64,.18)' });
+    return finirPlan(t, titre, s.parcelles ? 'Parcelle' + (s.parcelles.length > 1 ? 's ' : ' ') + s.parcelles.join(', ') + (s.surface ? ', ' + s.surface : '') : '');
+  });
+}
+function planAerien(s) {
+  var t = nouvelleToile(), cad = cadragePlan(formes.carte[s.id].getBounds().pad(0.7));
+  var titre = 'Vue aérienne';
+  return dessinerTuiles(t.ctx, cad, 'ORTHOIMAGERY.ORTHOPHOTOS', 'image/jpeg', 'normal', 19).then(function (ok) {
+    if (!ok) return { titre: titre, img: null, absent: 'La vue aérienne n’a pas répondu.' };
+    tracerParcelle(t.ctx, cad, s, { trait: '#E0336B', epaisseur: 5 });
+    return finirPlan(t, titre);
+  });
+}
+function planCommune(s) {
+  var titre = 'Situation dans la commune de ' + s.commune;
+  return contourCommune(s).then(function (geo) {
+    var c = formes.carte[s.id].getBounds().getCenter();
+    var emprise = geo ? boiteGeometrie(geo).pad(0.06) : L.latLng(c).toBounds(6000);
+    var t = nouvelleToile(), cad = cadragePlan(emprise);
+    return dessinerTuiles(t.ctx, cad, 'GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2', 'image/png', 'normal', 19).then(function (ok) {
+      if (!ok) return { titre: titre, img: null, absent: 'Le plan de la commune n’a pas répondu.' };
+      var ctx = t.ctx;
+      if (geo) {
+        (geo.type === 'Polygon' ? [geo.coordinates] : geo.coordinates).forEach(function (poly) {
+          tracerAnneaux(ctx, cad, poly.map(function (a) { return a.map(function (q) { return [q[1], q[0]]; }); }));
+          ctx.lineWidth = 3; ctx.strokeStyle = '#0F2238'; ctx.setLineDash([12, 8]); ctx.stroke(); ctx.setLineDash([]);
         });
-    }
-    return calque.then(function () {
-      tracerParcelle(ctx, cad, s, genre === 'aerien' || genre === 'ancien' ? { trait: '#E0336B', epaisseur: 5 }
-        : genre === 'situation' ? { trait: '#6E0A2C', epaisseur: 3, fond: 'rgba(160,16,64,.55)' } : { trait: '#A01040', epaisseur: 4, fond: 'rgba(160,16,64,.12)' });
-      signerPlan(ctx);
-      return { titre: titres[genre], img: toile.toDataURL('image/jpeg', 0.86), legende: legende.slice(0, 6) };
+      }
+      /* indicateur du lieu de situation du bien : point carmin cerclé de blanc, avec un halo */
+      var q = versPixel(c.lat, c.lng, cad);
+      ctx.beginPath(); ctx.arc(q[0], q[1], 34, 0, 2 * Math.PI); ctx.fillStyle = 'rgba(160,16,64,.22)'; ctx.fill();
+      ctx.beginPath(); ctx.arc(q[0], q[1], 15, 0, 2 * Math.PI); ctx.fillStyle = '#A01040'; ctx.fill();
+      ctx.lineWidth = 4; ctx.strokeStyle = '#FFFFFF'; ctx.stroke();
+      return finirPlan(t, titre, geo ? 'Limite de la commune en tirets' : '');
     });
-  }).catch(function () { return { titre: titres[genre], img: null, absent: 'Plan indisponible : le fond n’a pas pu être recopié.' }; });
+  });
 }
-/* les cinq plans l'un après l'autre (le Géoportail limite les appels simultanés) */
 function preparerPlans(s) {
-  var plans = [];
-  return ['situation', 'aerien', 'ancien', 'urba', 'sup'].reduce(function (p, g) {
-    return p.then(function () { return fabriquerPlan(s, g); }).then(function (r) { plans.push(r); });
-  }, Promise.resolve()).then(function () { return plans; });
+  var plans = {};
+  function sur(f, cle, titre) { return f(s).catch(function () { return { titre: titre, img: null, absent: 'Plan indisponible : le fond n’a pas pu être recopié.' }; }).then(function (r) { plans[cle] = r; }); }
+  return sur(planCadastre, 'cadastre', 'Plan cadastral')
+    .then(function () { return sur(planAerien, 'aerien', 'Vue aérienne'); })
+    .then(function () { return sur(planCommune, 'commune', 'Situation dans la commune de ' + s.commune); })
+    .then(function () { return plans; });
 }
 
 /* Fichier téléchargé par le navigateur */
@@ -1558,7 +1530,7 @@ function exporterFiche(s, avecBail, mode) {
   if (exportEnCours) { annoncer('Une fiche est déjà en préparation.'); return; }
   exportEnCours = true;
   document.querySelectorAll('[data-export]').forEach(function (b) { b.setAttribute('aria-busy', 'true'); });
-  annoncer('Préparation des cinq plans du site…');
+  annoncer('Préparation des plans du site…');
   preparerPlans(s).then(function (plans) {
     var doc = construirePdf(s, avecBail, plans), nom = nomFiche(s, avecBail);
     if (mode === 'mail') {
