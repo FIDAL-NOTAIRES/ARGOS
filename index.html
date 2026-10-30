@@ -469,7 +469,7 @@ body.charge-cartes .carte-zone,body.charge-cartes .incrustations{opacity:0}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/4.7.1/maplibre-gl.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script>
-/* ===================== ARGOS · maquette v0.57 · clients et documents fictifs, parcelles réelles lues au cadastre ===================== */
+/* ===================== ARGOS · maquette v0.58 · clients et documents fictifs, parcelles réelles lues au cadastre ===================== */
 var MISE_A_JOUR = 'octobre 2026';
 
 var NOTAIRE = {
@@ -1278,7 +1278,7 @@ function construirePdf(s, avecBail, plans) {
   droite.forEach(function (d, k) { police(d[1], d[2]); couleur(d[3]); doc.text(pdfTexte(d[0]), L_ - M, yd, { align: 'right' }); yd += k === 0 ? 4.8 : 4; });
   var yFilet = Math.max(yg, yd - 4) + 3.2;
   couleur(PDF_C.canard, 'trait'); doc.setLineWidth(0.6); doc.line(M, yFilet, L_ - M, yFilet);
-  y = yFilet - 1.5;
+  y = yFilet + 3;  /* v0.58 : le premier titre ne chevauche plus le filet */
 
   /* --- 1. Caractéristiques --- */
   section('Caractéristiques du site');
