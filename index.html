@@ -469,7 +469,7 @@ body.charge-cartes .carte-zone,body.charge-cartes .incrustations{opacity:0}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/4.7.1/maplibre-gl.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script>
-/* ===================== ARGOS · maquette v0.59 · clients et documents fictifs, parcelles réelles lues au cadastre ===================== */
+/* ===================== ARGOS · maquette v0.61 · clients et documents fictifs, parcelles réelles lues au cadastre ===================== */
 var MISE_A_JOUR = 'octobre 2026';
 
 var NOTAIRE = {
@@ -1269,90 +1269,106 @@ function construirePdf(s, avecBail, plans) {
   police(9.5); couleur(PDF_C.texte);
   env.slice(1).forEach(function (l) { yg += 4.6; doc.text(doc.splitTextToSize(pdfTexte(l), larg - 70)[0], M, yg); });
   var droite = [
-    ['Fiche du site', 10, true, PDF_C.nuit],
-    [avecBail ? 'Version avec le bail commercial' : 'Version sans les éléments du bail', 8, false, PDF_C.fonce],
+    [avecBail ? 'Version avec le bail commercial' : 'Version sans les éléments du bail', 8.5, true, PDF_C.fonce],
     ['Site ' + ident, 8, false, PDF_C.doux],
     ['Référence ' + codeSite(s), 8, false, PDF_C.doux],
     ['Établie le ' + dateLongue(maintenant), 8, false, PDF_C.doux]
   ], yd = 13;
-  droite.forEach(function (d, k) { police(d[1], d[2]); couleur(d[3]); doc.text(pdfTexte(d[0]), L_ - M, yd, { align: 'right' }); yd += k === 0 ? 4.8 : 4; });
+  droite.forEach(function (d, k) { police(d[1], d[2]); couleur(d[3]); doc.text(pdfTexte(d[0]), L_ - M, yd, { align: 'right' }); yd += k === 0 ? 4.6 : 4; });
   var yFilet = Math.max(yg, yd - 4) + 3.2;
   couleur(PDF_C.canard, 'trait'); doc.setLineWidth(0.6); doc.line(M, yFilet, L_ - M, yFilet);
   y = yFilet + 3;  /* v0.58 : le premier titre ne chevauche plus le filet */
 
-  /* --- v0.59 : DEUX COLONNES — à gauche toutes les informations, à droite les trois plans empilés --- */
-  var gX = M, gL = 80, dX = M + 86, dL = larg - 86, yG = y, yD = y;
+  /* --- v0.61 : disposition équilibrée en bandes ---
+     1) caractéristiques à gauche, extrait cadastral à droite (deux blocs de même hauteur)
+     2) bail commercial sur toute la largeur, en deux colonnes (version avec bail)
+     3) vue aérienne et situation dans la commune côte à côte, en format réduit
+     4) liste des pièces sur toute la largeur, en deux colonnes */
+  var cL = (larg - 8) / 2, xG = M, xD = M + cL + 8;
   function titreCol(t, x, w, yy) {
     yy += 3.5; police(10, true); couleur(PDF_C.nuit); doc.text(pdfTexte(t), x, yy);
     yy += 1.6; couleur(PDF_C.trait, 'trait'); doc.setLineWidth(0.3); doc.line(x, yy, x + w, yy);
     return yy + 4.4;
   }
-  /* une information = libellé en petit, valeur dessous ; filet léger entre deux informations */
-  function info(e) {
-    police(7.3); couleur(PDF_C.doux); doc.text(pdfTexte(e.lib), gX, yG);
+  /* une information = libellé en petit, valeur dessous ; renvoie la hauteur occupée */
+  function info(e, x, w, yy) {
+    police(7.3); couleur(PDF_C.doux); doc.text(pdfTexte(e.lib), x, yy);
     police(8.6, !!e.gras); couleur(e.couleur || PDF_C.texte);
-    var l = doc.splitTextToSize(pdfTexte(e.val), gL); doc.text(l, gX, yG + 3.9);
-    yG += 3.9 + l.length * 3.8 + 1.4;
-    couleur(PDF_C.filet, 'trait'); doc.setLineWidth(0.18); doc.line(gX, yG - 2.6, gX + gL, yG - 2.6);
-    yG += 1;
+    var l = doc.splitTextToSize(pdfTexte(e.val), w); doc.text(l, x, yy + 3.9);
+    var h = 3.9 + l.length * 3.8 + 1.4;
+    couleur(PDF_C.filet, 'trait'); doc.setLineWidth(0.18); doc.line(x, yy + h - 2.6, x + w, yy + h - 2.6);
+    return h + 1;
   }
-  function plan(p, ratio) {
-    var h = dL * ratio;
-    if (p && p.img) doc.addImage(p.img, 'JPEG', dX, yD, dL, h);
-    else {
-      couleur([238, 243, 248], 'fond'); doc.rect(dX, yD, dL, h, 'F');
-      police(8); couleur(PDF_C.doux); doc.text(doc.splitTextToSize(pdfTexte((p && p.absent) || 'Plan indisponible'), dL - 10), dX + dL / 2, yD + h / 2, { align: 'center' });
+  function colonne(liste, x, w, yy) { liste.forEach(function (e) { yy += info(e, x, w, yy); }); return yy; }
+  /* liste répartie sur deux colonnes, ligne à ligne */
+  function deuxColonnes(liste, yy) {
+    for (var i = 0; i < liste.length; i += 2) {
+      var h = info(liste[i], xG, cL, yy);
+      if (liste[i + 1]) h = Math.max(h, info(liste[i + 1], xD, cL, yy));
+      yy += h;
     }
-    couleur(PDF_C.trait, 'trait'); doc.setLineWidth(0.2); doc.rect(dX, yD, dL, h);
-    police(8, true); couleur(PDF_C.nuit); doc.text(doc.splitTextToSize(pdfTexte(p ? p.titre : ''), dL)[0], dX, yD + h + 3.8);
-    var yl = yD + h + 3.8;
-    if (p && p.legende) { police(7.2); couleur(PDF_C.doux); doc.text(doc.splitTextToSize(pdfTexte(p.legende), dL)[0], dX, yl + 3.5); yl += 3.5; }
-    yD = yl + 5;
+    return yy;
+  }
+  function plan(p, x, w, ratio, yy) {
+    var h = w * ratio;
+    if (p && p.img) doc.addImage(p.img, 'JPEG', x, yy, w, h);
+    else {
+      couleur([238, 243, 248], 'fond'); doc.rect(x, yy, w, h, 'F');
+      police(8); couleur(PDF_C.doux); doc.text(doc.splitTextToSize(pdfTexte((p && p.absent) || 'Plan indisponible'), w - 10), x + w / 2, yy + h / 2, { align: 'center' });
+    }
+    couleur(PDF_C.trait, 'trait'); doc.setLineWidth(0.2); doc.rect(x, yy, w, h);
+    police(8, true); couleur(PDF_C.nuit); doc.text(doc.splitTextToSize(pdfTexte(p ? p.titre : ''), w)[0], x, yy + h + 3.8);
+    var yl = yy + h + 3.8;
+    if (p && p.legende) { police(7.2); couleur(PDF_C.doux); doc.text(doc.splitTextToSize(pdfTexte(p.legende), w)[0], x, yl + 3.5); yl += 3.5; }
+    return yl + 3;
   }
 
-  /* --- Colonne de gauche : caractéristiques, bail (version complète), pièces --- */
-  yG = titreCol('Caractéristiques du site', gX, gL, yG);
-  [{ lib: 'Nature', val: s.nature }, { lib: 'Parcelles', val: s.parcelles ? s.parcelles.join(', ') : 'Lecture en cours' },
-   { lib: 'Surface cadastrale', val: s.surface || 'Non lue' }, { lib: 'Zonage d’urbanisme', val: s.zonage || 'Non lu' },
-   { lib: 'Région', val: s.region }].forEach(info);
+  /* --- 1. Caractéristiques | extrait cadastral --- */
+  var y0 = y;
+  var yG = colonne([{ lib: 'Nature', val: s.nature }, { lib: 'Parcelles', val: s.parcelles ? s.parcelles.join(', ') : 'Lecture en cours' },
+    { lib: 'Surface cadastrale', val: s.surface || 'Non lue' }, { lib: 'Zonage d’urbanisme', val: s.zonage || 'Non lu' },
+    { lib: 'Région', val: s.region }], xG, cL, titreCol('Caractéristiques du site', xG, cL, y0));
+  var yD = titreCol('Extrait du plan cadastral', xD, cL, y0);
+  if (plans) yD = plan(plans.cadastre, xD, cL, PLAN_H_CADASTRE / PLAN_L, yD);
+  y = Math.max(yG, yD);
 
+  /* --- 2. Bail commercial (version avec bail) --- */
   if (avecBail) {
-    var b = bail(s);
-    yG = titreCol('Bail commercial', gX, gL, yG + 1);
-    if (!b) info({ lib: 'Bail', val: 'Aucun bail commercial enregistré pour ce site' });
+    var b = bail(s), el = [];
+    y = titreCol('Bail commercial', xG, larg, y + 1);
+    if (!b) el.push({ lib: 'Bail', val: 'Aucun bail commercial enregistré pour ce site' });
     else {
       var auj = new Date(); auj.setHours(0, 0, 0, 0);
       var tri = prochaineTriennale(b, auj), ref = b.trimRef && ILC.valeurs[b.trimRef], der = ILC.valeurs[ILC.dernier];
-      info({ lib: 'Signature et entrée en vigueur', val: dateLongue(b.signature) + ', en vigueur le ' + dateLongue(b.entree) });
-      info({ lib: 'Expiration', val: dateLongue(b.expiration) + ' (durée ' + b.duree + ')' });
-      info({ lib: 'Résiliation triennale', val: b.triennale ? 'Oui' : 'Non' });
-      if (!tri) info({ lib: 'Échéance triennale', val: 'Aucune, prolongation tacite à vérifier', couleur: PDF_C.carmin, gras: true });
+      el.push({ lib: 'Signature et entrée en vigueur', val: dateLongue(b.signature) + ', en vigueur le ' + dateLongue(b.entree) });
+      el.push({ lib: 'Expiration', val: dateLongue(b.expiration) + ' (durée ' + b.duree + ')' });
+      el.push({ lib: 'Résiliation triennale', val: b.triennale ? 'Oui' : 'Non' });
+      if (!tri) el.push({ lib: 'Échéance triennale', val: 'Aucune, prolongation tacite à vérifier', couleur: PDF_C.carmin, gras: true });
       else {
         var conge = new Date(tri); conge.setMonth(conge.getMonth() - 6);
-        info({ lib: 'Prochaine échéance triennale', val: dateLongue(tri) + (!b.triennale ? '' : conge >= auj ? ', congé au plus tard le ' + dateLongue(conge) : ', délai de congé dépassé'),
+        el.push({ lib: 'Prochaine échéance triennale', val: dateLongue(tri) + (!b.triennale ? '' : conge >= auj ? ', congé au plus tard le ' + dateLongue(conge) : ', délai de congé dépassé'),
           gras: true, couleur: b.triennale && conge < auj ? PDF_C.carmin : PDF_C.fonce });
       }
-      info({ lib: 'Indexation', val: 'ILC ' + (ref ? ref.toLocaleString('fr-FR', { minimumFractionDigits: 2 }) + ' (' + libTrimestre(b.trimRef) + ')' : 'de référence non disponible') +
-        ' ; dernier indice ' + (der ? der.toLocaleString('fr-FR', { minimumFractionDigits: 2 }) : '—') + ' (' + libTrimestre(ILC.dernier) + ')' });
+      el.push({ lib: 'Indice de référence (ILC)', val: ref ? ref.toLocaleString('fr-FR', { minimumFractionDigits: 2 }) + ', ' + libTrimestre(b.trimRef) : 'Non disponible' });
+      el.push({ lib: 'Dernier indice connu (ILC)', val: (der ? der.toLocaleString('fr-FR', { minimumFractionDigits: 2 }) : '—') + ', ' + libTrimestre(ILC.dernier) });
     }
+    y = deuxColonnes(el, y);
   }
 
-  yG = titreCol('Liste des pièces disponibles', gX, gL, yG + 1);
-  THEMES.filter(function (t) { return avecBail || t.titre !== 'Exploitation'; }).forEach(function (t) {
+  /* --- 3. Vue aérienne | situation dans la commune --- */
+  if (plans) {
+    y = titreCol('Situation du site', xG, larg, y + 1);
+    y = Math.max(plan(plans.aerien, xG, cL, PLAN_H / PLAN_L, y), plan(plans.commune, xD, cL, PLAN_H / PLAN_L, y));
+  }
+
+  /* --- 4. Liste des pièces --- */
+  y = titreCol('Liste des pièces disponibles', xG, larg, y + 1);
+  y = deuxColonnes(THEMES.filter(function (t) { return avecBail || t.titre !== 'Exploitation'; }).map(function (t) {
     var v;
     if (t.plan) v = 'Plan cadastral colorisé';
     else v = (!t.docs.length || (t.titre === 'Exploitation' && s.id % 3 === 2)) ? 'Aucun document à ce stade' : t.docs.join(', ');
-    info({ lib: t.titre, val: v });
-  });
-
-  /* --- Colonne de droite : extrait cadastral, vue aérienne, situation dans la commune --- */
-  if (plans) {
-    yD = titreCol('Plans du site', dX, dL, yD);
-    plan(plans.cadastre, PLAN_H_CADASTRE / PLAN_L);
-    plan(plans.aerien, PLAN_H / PLAN_L);
-    plan(plans.commune, PLAN_H / PLAN_L);
-  }
-  y = Math.max(yG, yD);
+    return { lib: t.titre, val: v };
+  }), y);
 
   /* --- Pied de page --- */
   couleur(PDF_C.trait, 'trait'); doc.setLineWidth(0.3); doc.line(M, H_ - 14, L_ - M, H_ - 14);
@@ -1368,7 +1384,7 @@ function construirePdf(s, avecBail, plans) {
    Plan cadastral (en grand), vue aérienne actuelle, situation du site dans sa commune (point carmin).
    Les tuiles de la Géoplateforme sont redessinées sur un canevas avec le contour de la parcelle ;
    le contour de la commune vient de geo.api.gouv.fr. Si un fond ne répond pas, la fiche le dit à la place de l'image. */
-var PLAN_L = 1000, PLAN_H = 625, PLAN_H_CADASTRE = 580;
+var PLAN_L = 1000, PLAN_H = 500, PLAN_H_CADASTRE = 640;
 function chargerImage(url) {
   return new Promise(function (res) {
     var im = new Image(), fini = false;
@@ -1479,7 +1495,7 @@ function planReconstitue(s) {
   /* v0.55 : EXTRAIT CADASTRAL — cadré sur la parcelle et ses voisines immédiates, trait noir sur fond blanc,
      numéros des parcelles voisines lisibles, échelle graphique et flèche du nord */
   var t = nouvelleToile(PLAN_H_CADASTRE), cad = cadragePlan(formes.carte[s.id].getBounds().pad(0.32), PLAN_H_CADASTRE);
-  var titre = 'Extrait du plan cadastral';
+  var titre = 'Plan cadastral';
   return dessinerTuiles(t.ctx, cad, 'CADASTRALPARCELS.PARCELLAIRE_EXPRESS', 'image/png', 'PCI vecteur', 19).then(function (ok) {
     if (!ok) return { titre: titre, img: null, absent: 'Le plan cadastral n’a pas répondu.' };
     tracerParcelle(t.ctx, cad, s, { trait: '#A01040', epaisseur: 4, fond: 'rgba(160,16,64,.16)' });
@@ -1507,16 +1523,18 @@ function planCommune(s) {
       var ctx = t.ctx;
       if (geo) {
         (geo.type === 'Polygon' ? [geo.coordinates] : geo.coordinates).forEach(function (poly) {
+          /* v0.60 : toute la commune surlignée en rouge */
           tracerAnneaux(ctx, cad, poly.map(function (a) { return a.map(function (q) { return [q[1], q[0]]; }); }));
-          ctx.lineWidth = 3; ctx.strokeStyle = '#0F2238'; ctx.setLineDash([12, 8]); ctx.stroke(); ctx.setLineDash([]);
+          ctx.fillStyle = 'rgba(215,38,61,.20)'; ctx.fill('evenodd');
+          ctx.lineWidth = 4; ctx.strokeStyle = '#D7263D'; ctx.stroke();
         });
       }
       /* indicateur du lieu de situation du bien : point carmin cerclé de blanc, avec un halo */
       var q = versPixel(c.lat, c.lng, cad);
-      ctx.beginPath(); ctx.arc(q[0], q[1], 34, 0, 2 * Math.PI); ctx.fillStyle = 'rgba(160,16,64,.22)'; ctx.fill();
-      ctx.beginPath(); ctx.arc(q[0], q[1], 15, 0, 2 * Math.PI); ctx.fillStyle = '#A01040'; ctx.fill();
+      ctx.beginPath(); ctx.arc(q[0], q[1], 34, 0, 2 * Math.PI); ctx.fillStyle = 'rgba(15,34,56,.25)'; ctx.fill();
+      ctx.beginPath(); ctx.arc(q[0], q[1], 15, 0, 2 * Math.PI); ctx.fillStyle = '#0F2238'; ctx.fill();
       ctx.lineWidth = 4; ctx.strokeStyle = '#FFFFFF'; ctx.stroke();
-      return finirPlan(t, titre, geo ? 'Limite de la commune en tirets' : '');
+      return finirPlan(t, titre, geo ? 'Commune surlignée en rouge, le site marqué d’un point bleu' : 'Le site marqué d’un point bleu');
     });
   });
 }
