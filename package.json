@@ -1,0 +1,9 @@
+{
+  "name": "argos",
+  "version": "0.63.0",
+  "private": true,
+  "description": "ARGOS — portail patrimoine client (FIDAL Notaires)",
+  "dependencies": {
+    "@neondatabase/serverless": "^0.10.4"
+  }
+}
