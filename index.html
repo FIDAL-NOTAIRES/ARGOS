@@ -380,12 +380,15 @@ body.charge-cartes .carte-zone,body.charge-cartes .incrustations{opacity:0}
 
 <header class="tete">
   <div class="marque"><b>ARGOS</b><span>FIDAL Notaires</span></div>
-  <div class="client">Client de démonstration</div>
-  <span class="demo">Maquette · données fictives</span>
+  <div class="client" id="nomClient"></div>
   <div class="espace"></div>
   <button class="btn-tete" id="btnVisite" type="button">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="12" rx="1"/><path d="M12 16v4M8 20h8"/></svg>
     <span class="txt">Mode visite</span>
+  </button>
+  <button class="btn-tete" id="btnCompte" type="button" title="Mon compte">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>
+    <span class="txt" id="txtCompte">Compte</span>
   </button>
 
 </header>
@@ -468,7 +471,367 @@ body.charge-cartes .carte-zone,body.charge-cartes .incrustations{opacity:0}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/4.7.1/maplibre-gl.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+<style>
+/* ===================== LOT 3 : ACCÈS AU PORTAIL (connexion, activation, téléphone, équipe) ===================== */
+#acces{position:fixed;inset:0;z-index:6000;background:var(--nuit);display:flex;align-items:center;justify-content:center;padding:20px;overflow:auto}
+#acces[hidden]{display:none}
+.ac-carte{background:var(--blanc);color:var(--texte);border-radius:14px;width:100%;max-width:440px;padding:30px 30px 26px;box-shadow:0 20px 60px rgba(0,0,0,.35);font-size:15px;line-height:1.45}
+.ac-carte.large{max-width:860px}
+.ac-marque{display:flex;align-items:baseline;gap:10px;margin-bottom:4px}
+.ac-marque b{font-family:Georgia,"Times New Roman",serif;font-weight:400;font-size:26px;letter-spacing:.12em;color:var(--nuit)}
+.ac-marque span{font-size:12px;color:var(--canard);letter-spacing:.04em}
+.ac-societe{color:var(--doux);font-size:14px;margin:0 0 18px;padding-bottom:14px;border-bottom:1px solid var(--trait)}
+.ac-carte h2{font-family:Georgia,"Times New Roman",serif;font-weight:400;font-size:22px;margin:0 0 10px;color:var(--nuit)}
+.ac-carte p{margin:0 0 12px;color:var(--doux)}
+.ac-carte label{display:block;font-size:13px;color:var(--doux);margin:12px 0 4px}
+.ac-carte input[type=text],.ac-carte input[type=email],.ac-carte input[type=password]{width:100%;padding:10px 12px;border:1px solid var(--trait);border-radius:8px;font:inherit;background:#fff}
+.ac-carte input:focus{outline:2px solid var(--cyan);outline-offset:1px;border-color:var(--canard)}
+.ac-force{height:5px;border-radius:3px;background:#EDF0F3;margin-top:6px;overflow:hidden}
+.ac-force i{display:block;height:100%;width:0;background:var(--carmin);transition:width .2s,background .2s}
+.ac-cond{display:flex;gap:10px;align-items:flex-start;font-size:13.5px;color:var(--texte);margin:10px 0;cursor:pointer}
+.ac-cond input{margin-top:3px;flex:none}
+.ac-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px solid var(--canard);background:var(--canard);color:#fff;border-radius:8px;padding:10px 18px;font:inherit;width:100%;margin-top:14px}
+.ac-btn:hover{background:#2B6F76}
+.ac-btn[disabled]{opacity:.5;cursor:default}
+.ac-btn.second{background:#fff;color:var(--canard)}
+.ac-btn.second:hover{background:#EEF6F7}
+.ac-btn.danger{background:#fff;color:var(--carmin);border-color:var(--carmin)}
+.ac-lien{display:block;text-align:center;margin-top:14px;font-size:13px;color:var(--canard)}
+.ac-erreur{color:var(--carmin);font-size:14px;min-height:20px;margin-top:10px}
+.ac-ok{color:#2E8B57;font-size:14px;margin-top:10px}
+.ac-lignes{margin:14px 0;padding:0;list-style:none}
+.ac-lignes li{display:flex;gap:10px;padding:7px 0;border-bottom:1px solid #EEF1F4;font-size:14px}
+.ac-lignes li::before{content:"";flex:none;width:8px;height:8px;border-radius:50%;background:var(--cyan);margin-top:7px}
+.ac-qr{display:flex;gap:18px;align-items:center;background:var(--fond);border-radius:10px;padding:14px;margin-top:14px}
+.ac-qr img{width:132px;height:132px;background:#fff;border-radius:6px;padding:6px;flex:none}
+.ac-qr p{margin:0;font-size:13.5px}
+.ac-clavier{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:14px 0 4px}
+.ac-clavier button{font:inherit;font-size:22px;padding:14px 0;border:1px solid var(--trait);border-radius:10px;background:#fff;color:var(--nuit)}
+.ac-clavier button:active{background:#EEF6F7}
+.ac-points{display:flex;justify-content:center;gap:12px;margin:10px 0 2px}
+.ac-points i{width:14px;height:14px;border-radius:50%;border:2px solid var(--canard);display:block}
+.ac-points i.plein{background:var(--canard)}
+.ac-petit{font-size:12.5px;color:var(--doux);text-align:center;margin-top:10px}
+.ac-table{width:100%;border-collapse:collapse;font-size:13.5px;margin-top:8px}
+.ac-table th{text-align:left;font-weight:600;color:var(--doux);font-size:12.5px;padding:8px 8px;border-bottom:1px solid var(--trait)}
+.ac-table td{padding:8px 8px;border-bottom:1px solid #EEF1F4;vertical-align:middle}
+.ac-table button{font:inherit;font-size:12.5px;border:1px solid var(--carmin);color:var(--carmin);background:#fff;border-radius:6px;padding:4px 9px}
+.ac-etat{font-size:12px;padding:2px 8px;border-radius:12px;border:1px solid var(--trait);color:var(--doux);white-space:nowrap}
+.ac-etat.actif{color:#2E8B57;border-color:#BFE3CF}
+.ac-etat.coupe{color:var(--carmin);border-color:#F0C3D0;background:#FBEDF1}
+.ac-onglets{display:flex;gap:6px;margin:12px 0 6px}
+.ac-onglets button{font:inherit;font-size:13.5px;border:1px solid var(--trait);background:#fff;border-radius:20px;padding:5px 14px;color:var(--doux)}
+.ac-onglets button[aria-pressed=true]{background:var(--nuit);color:#fff;border-color:var(--nuit)}
+.ac-defile{max-height:50vh;overflow:auto}
+#menuCompte{position:fixed;top:calc(var(--tete) + 6px);right:12px;z-index:4000;background:#fff;border:1px solid var(--trait);border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.18);min-width:240px;padding:8px 0;font-size:14px}
+#menuCompte[hidden]{display:none}
+#menuCompte .qui{padding:8px 16px 10px;border-bottom:1px solid var(--trait);color:var(--doux);font-size:13px}
+#menuCompte .qui b{display:block;color:var(--texte);font-size:14px}
+#menuCompte button{display:block;width:100%;text-align:left;background:none;border:0;padding:9px 16px;font:inherit;color:var(--texte)}
+#menuCompte button:hover{background:var(--fond)}
+@media (max-width:560px){.ac-carte{padding:22px 18px}.ac-qr{flex-direction:column}}
+</style>
+<div id="acces" aria-live="polite"></div>
+<div id="menuCompte" hidden></div>
 <script>
+/* ===================== LOT 3 : ACCÈS AU PORTAIL =====================
+   S'exécute AVANT le portail. Routes : #activation/<jeton>  #code/<jeton>  #mdp/<jeton>  #appareil/<jeton>  #site/<id>
+   Session : cookie posé par le serveur (/api/argos), jamais lu ici. */
+(function () {
+  var ac = document.getElementById('acces');
+  var ETAT = null;           /* réponse de ?action=etat */
+  var portailLance = false;
+
+  function h(t) { return String(t == null ? '' : t).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function api(action, params, methode) {
+    var opt = { method: methode || 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin' };
+    if (opt.method === 'POST') opt.body = JSON.stringify(Object.assign({ action: action }, params || {}));
+    return fetch(opt.method === 'POST' ? '/api/argos' : '/api/argos?action=' + action, opt).then(function (r) {
+      return r.json().catch(function () { return { erreur: 'Réponse illisible.' }; }).then(function (d) {
+        if (!r.ok) { var e = new Error(d.erreur || ('Erreur ' + r.status)); e.mdp = d.mdp; e.statut = r.status; throw e; }
+        return d;
+      });
+    });
+  }
+  function carte(contenu, large) {
+    ac.hidden = false;
+    ac.innerHTML = '<div class="ac-carte' + (large ? ' large' : '') + '"><div class="ac-marque"><b>ARGOS</b><span>FIDAL Notaires</span></div>' +
+      '<p class="ac-societe">' + h(ETAT && ETAT.client ? 'Portail du patrimoine foncier · ' + ETAT.client : 'Portail du patrimoine foncier') + '</p>' + contenu + '</div>';
+    var premier = ac.querySelector('input'); if (premier) setTimeout(function () { premier.focus(); }, 50);
+  }
+  function erreur(t) { var e = ac.querySelector('.ac-erreur'); if (e) e.textContent = t || ''; }
+  function forceMdp(v) {
+    var n = v.length, s = 0;
+    if (n >= 12) s = 1; if (n >= 16) s = 2; if (n >= 20 && /[^a-zA-Z0-9]/.test(v)) s = 3;
+    var i = ac.querySelector('.ac-force i'); if (!i) return;
+    i.style.width = (n ? [25, 55, 80, 100][s] : 0) + '%'; i.style.background = ['#A01040', '#FF982D', '#33838B', '#2E8B57'][s];
+  }
+  function echappement() { if (ETAT && ETAT.suspendu) { carte('<h2>Portail suspendu</h2><p>L’accès au portail est suspendu par FIDAL Notaires. Rapprochez-vous de votre interlocuteur habituel.</p>'); return true; } return false; }
+
+  /* ---------- 1. Connexion sur ordinateur (ou téléphone inconnu) ---------- */
+  function ecranConnexion(message) {
+    carte('<h2>Se connecter</h2>' +
+      '<label for="acCourriel">Courriel</label><input type="email" id="acCourriel" autocomplete="username" inputmode="email">' +
+      '<label for="acMdp">Mot de passe</label><input type="password" id="acMdp" autocomplete="current-password">' +
+      '<div class="ac-erreur">' + h(message || '') + '</div>' +
+      '<button class="ac-btn" id="acBtn">Se connecter</button>' +
+      '<a class="ac-lien" href="#" id="acOubli">Mot de passe oublié</a>');
+    function envoyer() {
+      var c = document.getElementById('acCourriel').value.trim(), m = document.getElementById('acMdp').value;
+      if (!c || !m) { erreur('Saisissez votre courriel et votre mot de passe.'); return; }
+      document.getElementById('acBtn').disabled = true; erreur('');
+      api('connexion', { courriel: c, mdp: m }).then(function () { lancerPortail(); })
+        .catch(function (e) { erreur(e.message); document.getElementById('acBtn').disabled = false; });
+    }
+    document.getElementById('acBtn').onclick = envoyer;
+    ac.querySelectorAll('input').forEach(function (i) { i.onkeydown = function (e) { if (e.key === 'Enter') envoyer(); }; });
+    document.getElementById('acOubli').onclick = function (e) {
+      e.preventDefault();
+      carte('<h2>Mot de passe oublié</h2><p>Pour des raisons de sécurité, un nouveau mot de passe se choisit à partir d’un lien envoyé par FIDAL Notaires. Demandez-le à votre interlocuteur habituel à l’étude, ou à votre responsable : il reçoit un lien valable quarante-huit heures.</p><button class="ac-btn second" id="acRetour">Retour</button>');
+      document.getElementById('acRetour').onclick = function () { ecranConnexion(); };
+    };
+  }
+
+  /* ---------- 2. Connexion sur téléphone connu : clavier à six touches ---------- */
+  function ecranCode(titre, texte, action, params, apres) {
+    var saisi = '';
+    carte('<h2>' + h(titre) + '</h2><p>' + h(texte) + '</p>' +
+      '<div class="ac-points">' + '<i></i>'.repeat(6) + '</div>' +
+      '<div class="ac-clavier">' + [1, 2, 3, 4, 5, 6, 7, 8, 9].map(function (n) { return '<button type="button" data-n="' + n + '">' + n + '</button>'; }).join('') +
+      '<button type="button" data-n="eff">⌫</button><button type="button" data-n="0">0</button><button type="button" data-n="ok">OK</button></div>' +
+      '<div class="ac-erreur"></div><a class="ac-lien" href="#" id="acAutre">Me connecter avec mon mot de passe</a>');
+    function points() { var p = ac.querySelectorAll('.ac-points i'); p.forEach(function (x, i) { x.classList.toggle('plein', i < saisi.length); }); }
+    function valider() {
+      if (saisi.length !== 6) { erreur('Six chiffres.'); return; }
+      erreur('');
+      api(action, Object.assign({ code: saisi }, params || {})).then(apres)
+        .catch(function (e) { if (e.mdp) { ecranConnexion(e.message); return; } erreur(e.message); saisi = ''; points(); });
+    }
+    ac.querySelectorAll('.ac-clavier button').forEach(function (b) {
+      b.onclick = function () {
+        var n = b.getAttribute('data-n');
+        if (n === 'eff') saisi = saisi.slice(0, -1); else if (n === 'ok') { valider(); return; } else if (saisi.length < 6) saisi += n;
+        points(); if (saisi.length === 6 && n !== 'ok') setTimeout(valider, 120);
+      };
+    });
+    document.addEventListener('keydown', function clavier(e) {
+      if (!ac.contains(document.activeElement) && ac.hidden) { document.removeEventListener('keydown', clavier); return; }
+      if (/^[0-9]$/.test(e.key) && saisi.length < 6) { saisi += e.key; points(); if (saisi.length === 6) setTimeout(valider, 120); }
+      else if (e.key === 'Backspace') { saisi = saisi.slice(0, -1); points(); }
+      else if (e.key === 'Enter') valider();
+    });
+    document.getElementById('acAutre').onclick = function (e) { e.preventDefault(); ecranConnexion(); };
+  }
+
+  /* ---------- 3. Activation du compte ---------- */
+  function ecranActivation(jeton) {
+    api('activation_lire', { jeton: jeton }).then(function (d) {
+      carte('<h2>Activer mon accès</h2><p>' + h(d.prenom + ' ' + d.nom) + ' · ' + h(d.courriel) + '</p>' +
+        '<label for="acMdp1">Mot de passe (douze caractères minimum)</label><input type="password" id="acMdp1" autocomplete="new-password"><div class="ac-force"><i></i></div>' +
+        '<label for="acMdp2">Confirmez le mot de passe</label><input type="password" id="acMdp2" autocomplete="new-password">' +
+        '<label for="acCode1">Code secret à six chiffres <span style="color:var(--doux)">— il vous servira sur votre téléphone</span></label><input type="password" id="acCode1" inputmode="numeric" maxlength="6" autocomplete="one-time-code">' +
+        '<label for="acCode2">Confirmez le code secret</label><input type="password" id="acCode2" inputmode="numeric" maxlength="6">' +
+        '<p style="margin-top:14px;font-size:13px">Conditions d’utilisation</p>' +
+        '<label class="ac-cond"><input type="checkbox" class="acCond"><span>Les documents mis à disposition sur ce portail sont confidentiels : je m’engage à ne les communiquer qu’aux personnes habilitées au sein de ma société et à ses conseils.</span></label>' +
+        '<label class="ac-cond"><input type="checkbox" class="acCond"><span>Je prends acte que le portail ne contient que les pièces communiquées à FIDAL Notaires ou récupérées par l’étude dans le cadre d’un dossier ; il ne garantit pas qu’aucune pièce ne manque et ne constitue pas un audit.</span></label>' +
+        '<label class="ac-cond"><input type="checkbox" class="acCond"><span>Je prends acte que les mises à jour du portail sont effectuées à la fréquence déterminée par la lettre de mission conclue avec FIDAL Notaires.</span></label>' +
+        '<div class="ac-erreur"></div><button class="ac-btn" id="acBtn" disabled>Activer mon accès</button>');
+      var m1 = document.getElementById('acMdp1');
+      function controler() {
+        var ok = m1.value.length >= 12 && document.getElementById('acMdp2').value === m1.value &&
+          /^\d{6}$/.test(document.getElementById('acCode1').value) && document.getElementById('acCode2').value === document.getElementById('acCode1').value &&
+          Array.prototype.every.call(ac.querySelectorAll('.acCond'), function (c) { return c.checked; });
+        document.getElementById('acBtn').disabled = !ok;
+      }
+      ac.querySelectorAll('input').forEach(function (i) { i.oninput = i.onchange = function () { forceMdp(m1.value); controler(); }; });
+      document.getElementById('acBtn').onclick = function () {
+        erreur(''); document.getElementById('acBtn').disabled = true;
+        api('activation', { jeton: jeton, mdp: m1.value, code: document.getElementById('acCode1').value, conditions: true })
+          .then(function (r) { ecranBienvenue(r); })
+          .catch(function (e) { erreur(e.message); controler(); });
+      };
+    }).catch(function (e) { carte('<h2>Lien inutilisable</h2><p>' + h(e.message) + '</p><button class="ac-btn second" id="acRetour">Aller à la page de connexion</button>'); document.getElementById('acRetour').onclick = function () { location.hash = ''; ecranConnexion(); }; });
+  }
+
+  /* ---------- 4. Bienvenue + ajout du téléphone par code QR ---------- */
+  function ecranBienvenue(r) {
+    carte('<h2>Votre accès est activé</h2>' +
+      '<ul class="ac-lignes"><li>Sur ordinateur, vous vous connectez avec votre courriel et votre mot de passe.</li>' +
+      '<li>Sur téléphone, avec votre code secret.</li>' +
+      '<li>FIDAL Notaires est prévenu de toute connexion depuis un nouvel appareil.</li></ul>' +
+      '<div id="acZoneQr"></div>' +
+      '<button class="ac-btn" id="acAller">Accéder à mon portail</button>');
+    afficherQr(document.getElementById('acZoneQr'));
+    document.getElementById('acAller').onclick = function () { location.hash = ''; lancerPortail(); };
+  }
+  function afficherQr(zone) {
+    zone.innerHTML = '<div class="ac-qr"><div style="width:132px;height:132px;background:#EDF0F3;border-radius:6px"></div><p>Préparation du code…</p></div>';
+    api('appairage_creer').then(function (d) {
+      var qr = qrcode(0, 'M'); qr.addData(d.url); qr.make();
+      zone.innerHTML = '<div class="ac-qr"><img alt="Code QR" src="' + qr.createDataURL(5, 2) + '"><p><strong>Ajoutez maintenant votre téléphone</strong><br>Scannez ce code avec l’appareil photo de votre téléphone, puis saisissez votre code secret. Valable dix minutes ; vous pourrez le refaire plus tard depuis « Compte ».</p></div>';
+    }).catch(function (e) { zone.innerHTML = '<p class="ac-erreur">' + h(e.message) + '</p>'; });
+  }
+
+  /* ---------- 5. Téléphone qui a scanné le code QR ---------- */
+  function ecranAppairage(jeton) {
+    ecranCode('Ajouter ce téléphone', 'Saisissez votre code secret pour enregistrer ce téléphone comme appareil connu.', 'appairage', { jeton: jeton },
+      function () { location.hash = ''; carte('<h2>Téléphone enregistré</h2><p>Désormais, sur ce téléphone, votre code secret suffit pour ouvrir le portail.</p><button class="ac-btn" id="acAller">Accéder à mon portail</button>'); document.getElementById('acAller').onclick = function () { lancerPortail(); }; });
+    var l = document.getElementById('acAutre'); if (l) l.remove();
+  }
+
+  /* ---------- 6. Liens de réinitialisation envoyés par FIDAL Notaires ---------- */
+  function ecranReinit(objet, jeton) {
+    var code = objet === 'code';
+    carte('<h2>' + (code ? 'Nouveau code secret' : 'Nouveau mot de passe') + '</h2>' +
+      (code ? '<label for="acMdp">Votre mot de passe actuel</label><input type="password" id="acMdp" autocomplete="current-password">' +
+              '<label for="acCode1">Nouveau code secret (six chiffres)</label><input type="password" id="acCode1" inputmode="numeric" maxlength="6">' +
+              '<label for="acCode2">Confirmez</label><input type="password" id="acCode2" inputmode="numeric" maxlength="6">'
+            : '<label for="acMdp1">Nouveau mot de passe (douze caractères minimum)</label><input type="password" id="acMdp1" autocomplete="new-password"><div class="ac-force"><i></i></div>' +
+              '<label for="acMdp2">Confirmez</label><input type="password" id="acMdp2" autocomplete="new-password">') +
+      '<div class="ac-erreur"></div><button class="ac-btn" id="acBtn">Enregistrer</button>');
+    if (!code) document.getElementById('acMdp1').oninput = function () { forceMdp(this.value); };
+    document.getElementById('acBtn').onclick = function () {
+      erreur('');
+      var p;
+      if (code) { if (document.getElementById('acCode1').value !== document.getElementById('acCode2').value) { erreur('Les deux codes diffèrent.'); return; } p = api('reinit_code', { jeton: jeton, mdp: document.getElementById('acMdp').value, code: document.getElementById('acCode1').value }); }
+      else { if (document.getElementById('acMdp1').value !== document.getElementById('acMdp2').value) { erreur('Les deux mots de passe diffèrent.'); return; } p = api('reinit_mdp', { jeton: jeton, mdp: document.getElementById('acMdp1').value }); }
+      p.then(function () { location.hash = ''; carte('<h2>C’est enregistré</h2><p>Vous pouvez vous connecter.</p><button class="ac-btn" id="acAller">Se connecter</button>'); document.getElementById('acAller').onclick = function () { ecranConnexion(); }; })
+        .catch(function (e) { erreur(e.message); });
+    };
+  }
+
+  /* ---------- 7. Équipe (responsable) ---------- */
+  function ecranEquipe() {
+    carte('<h2>Mon équipe</h2><p>Chargement…</p>', true);
+    api('equipe', null, 'GET').then(function (d) {
+      function dateFr(v) { var x = new Date(v); return isNaN(x) ? '—' : x.toLocaleDateString('fr-FR') + ' ' + x.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }); }
+      function etat(m) {
+        if (m.coupe_par_responsable) return '<span class="ac-etat coupe">Accès coupé</span>';
+        if (m.suspendu_le) return '<span class="ac-etat coupe">Suspendu par l’étude</span>';
+        if (m.bloque_jusqua && new Date(m.bloque_jusqua) > new Date()) return '<span class="ac-etat coupe">Suspendu 48 h</span>';
+        if (!m.active_le) return '<span class="ac-etat">En attente d’activation</span>';
+        return '<span class="ac-etat actif">Actif</span>';
+      }
+      var res = { ok: 'Réussie', echec: 'Échouée', bloque: 'Bloquée', nouvel_appareil: 'Nouvel appareil', coupure_responsable: 'Accès coupé', reinitialisation: 'Réinitialisation', activation: 'Activation', code_echec: 'Code incorrect', suspension: 'Suspension 48 h' };
+      carte('<h2>Mon équipe</h2><p>Vous pouvez couper immédiatement l’accès d’un membre de votre équipe. Seule FIDAL Notaires peut ensuite le rétablir.</p>' +
+        '<div class="ac-onglets"><button type="button" data-o="membres" aria-pressed="true">Membres</button><button type="button" data-o="connexions" aria-pressed="false">Connexions</button><button type="button" data-o="pieces" aria-pressed="false">Pièces consultées</button></div>' +
+        '<div class="ac-defile" id="acOnglet"></div><div class="ac-erreur"></div><button class="ac-btn second" id="acRetour">Retour au portail</button>', true);
+      function rendre(o) {
+        var z = document.getElementById('acOnglet');
+        if (o === 'membres') z.innerHTML = '<table class="ac-table"><tr><th>Personne</th><th>Rôle</th><th>Dernière connexion</th><th>État</th><th></th></tr>' + d.membres.map(function (m) {
+          return '<tr><td><strong>' + h(m.prenom + ' ' + m.nom) + '</strong><br><span style="color:var(--doux);font-size:12px">' + h(m.courriel) + '</span></td><td>' + (m.role === 'responsable' ? 'Responsable' : 'Lecture') + '</td><td>' + (m.derniere_connexion ? dateFr(m.derniere_connexion) : '—') + '</td><td>' + etat(m) + '</td>' +
+            '<td>' + (m.id !== ETAT.utilisateur.id && !m.coupe_par_responsable ? '<button type="button" data-couper="' + m.id + '" data-nom="' + h(m.prenom + ' ' + m.nom) + '">Couper l’accès</button>' : '') + '</td></tr>'; }).join('') + '</table>';
+        else if (o === 'connexions') z.innerHTML = '<table class="ac-table"><tr><th>Date</th><th>Personne</th><th>Appareil</th><th>Résultat</th></tr>' + d.connexions.map(function (c) {
+          return '<tr><td>' + dateFr(c.horodatage) + '</td><td>' + h((c.prenom || '') + ' ' + (c.nom || '')) + '</td><td>' + h(c.appareil || '—') + '</td><td>' + h(res[c.resultat] || c.resultat) + (c.detail ? '<br><span style="color:var(--doux);font-size:12px">' + h(c.detail) + '</span>' : '') + '</td></tr>'; }).join('') + '</table>';
+        else z.innerHTML = '<table class="ac-table"><tr><th>Date</th><th>Personne</th><th>Pièce</th><th>Site</th></tr>' + d.telechargements.map(function (t) {
+          return '<tr><td>' + dateFr(t.horodatage) + '</td><td>' + h(t.prenom + ' ' + t.nom) + '</td><td>' + h(t.nom_fichier) + '</td><td>' + h((t.site || '') + (t.commune ? ' · ' + t.commune : '')) + '</td></tr>'; }).join('') + '</table>';
+        z.querySelectorAll('[data-couper]').forEach(function (b) {
+          b.onclick = function () {
+            if (!confirm('Couper immédiatement l’accès de ' + b.getAttribute('data-nom') + ' ? Seule FIDAL Notaires pourra le rétablir.')) return;
+            api('couper', { utilisateur_id: Number(b.getAttribute('data-couper')) }).then(ecranEquipe).catch(function (e) { erreur(e.message); });
+          };
+        });
+      }
+      ac.querySelectorAll('.ac-onglets button').forEach(function (b) { b.onclick = function () { ac.querySelectorAll('.ac-onglets button').forEach(function (x) { x.setAttribute('aria-pressed', 'false'); }); b.setAttribute('aria-pressed', 'true'); rendre(b.getAttribute('data-o')); }; });
+      rendre('membres');
+      document.getElementById('acRetour').onclick = function () { ac.hidden = true; if (!portailLance) lancerPortail(); };
+    }).catch(function (e) { carte('<h2>Mon équipe</h2><p class="ac-erreur">' + h(e.message) + '</p><button class="ac-btn second" id="acRetour">Retour</button>'); document.getElementById('acRetour').onclick = function () { ac.hidden = true; }; });
+  }
+
+  /* ---------- 8. Menu Compte dans le bandeau ---------- */
+  function menuCompte() {
+    var m = document.getElementById('menuCompte'), u = ETAT.utilisateur;
+    m.innerHTML = '<div class="qui"><b>' + h(u.prenom + ' ' + u.nom) + '</b>' + h(u.courriel) + (u.role === 'responsable' ? ' · responsable' : '') + '</div>' +
+      '<button type="button" data-m="tel">Ajouter mon téléphone (code QR)</button>' +
+      (u.role === 'responsable' ? '<button type="button" data-m="equipe">Mon équipe et le journal</button>' : '') +
+      '<button type="button" data-m="sortir">Se déconnecter</button>';
+    m.querySelectorAll('button').forEach(function (b) {
+      b.onclick = function () {
+        m.hidden = true;
+        var k = b.getAttribute('data-m');
+        if (k === 'sortir') api('deconnexion').then(function () { location.hash = ''; location.reload(); });
+        else if (k === 'equipe') ecranEquipe();
+        else { carte('<h2>Ajouter mon téléphone</h2><div id="acZoneQr"></div><button class="ac-btn second" id="acRetour">Fermer</button>'); afficherQr(document.getElementById('acZoneQr')); document.getElementById('acRetour').onclick = function () { ac.hidden = true; }; }
+      };
+    });
+    var btn = document.getElementById('btnCompte');
+    btn.onclick = function (e) { e.stopPropagation(); m.hidden = !m.hidden; };
+    document.addEventListener('click', function () { m.hidden = true; });
+    document.getElementById('txtCompte').textContent = u.prenom || 'Compte';
+  }
+
+  /* ---------- 9. Lancement du portail : sites réels, puis le code de la maquette ---------- */
+  var REGIONS = { '01': 'Auvergne-Rhône-Alpes', '03': 'Auvergne-Rhône-Alpes', '07': 'Auvergne-Rhône-Alpes', '15': 'Auvergne-Rhône-Alpes', '26': 'Auvergne-Rhône-Alpes', '38': 'Auvergne-Rhône-Alpes', '42': 'Auvergne-Rhône-Alpes', '43': 'Auvergne-Rhône-Alpes', '63': 'Auvergne-Rhône-Alpes', '69': 'Auvergne-Rhône-Alpes', '73': 'Auvergne-Rhône-Alpes', '74': 'Auvergne-Rhône-Alpes',
+    '21': 'Bourgogne-Franche-Comté', '25': 'Bourgogne-Franche-Comté', '39': 'Bourgogne-Franche-Comté', '58': 'Bourgogne-Franche-Comté', '70': 'Bourgogne-Franche-Comté', '71': 'Bourgogne-Franche-Comté', '89': 'Bourgogne-Franche-Comté', '90': 'Bourgogne-Franche-Comté',
+    '22': 'Bretagne', '29': 'Bretagne', '35': 'Bretagne', '56': 'Bretagne', '18': 'Centre-Val de Loire', '28': 'Centre-Val de Loire', '36': 'Centre-Val de Loire', '37': 'Centre-Val de Loire', '41': 'Centre-Val de Loire', '45': 'Centre-Val de Loire', '2A': 'Corse', '2B': 'Corse',
+    '08': 'Grand Est', '10': 'Grand Est', '51': 'Grand Est', '52': 'Grand Est', '54': 'Grand Est', '55': 'Grand Est', '57': 'Grand Est', '67': 'Grand Est', '68': 'Grand Est', '88': 'Grand Est',
+    '02': 'Hauts-de-France', '59': 'Hauts-de-France', '60': 'Hauts-de-France', '62': 'Hauts-de-France', '80': 'Hauts-de-France', '75': 'Île-de-France', '77': 'Île-de-France', '78': 'Île-de-France', '91': 'Île-de-France', '92': 'Île-de-France', '93': 'Île-de-France', '94': 'Île-de-France', '95': 'Île-de-France',
+    '14': 'Normandie', '27': 'Normandie', '50': 'Normandie', '61': 'Normandie', '76': 'Normandie', '16': 'Nouvelle-Aquitaine', '17': 'Nouvelle-Aquitaine', '19': 'Nouvelle-Aquitaine', '23': 'Nouvelle-Aquitaine', '24': 'Nouvelle-Aquitaine', '33': 'Nouvelle-Aquitaine', '40': 'Nouvelle-Aquitaine', '47': 'Nouvelle-Aquitaine', '64': 'Nouvelle-Aquitaine', '79': 'Nouvelle-Aquitaine', '86': 'Nouvelle-Aquitaine', '87': 'Nouvelle-Aquitaine',
+    '09': 'Occitanie', '11': 'Occitanie', '12': 'Occitanie', '30': 'Occitanie', '31': 'Occitanie', '32': 'Occitanie', '34': 'Occitanie', '46': 'Occitanie', '48': 'Occitanie', '65': 'Occitanie', '66': 'Occitanie', '81': 'Occitanie', '82': 'Occitanie',
+    '44': 'Pays de la Loire', '49': 'Pays de la Loire', '53': 'Pays de la Loire', '72': 'Pays de la Loire', '85': 'Pays de la Loire', '04': 'Provence-Alpes-Côte d’Azur', '05': 'Provence-Alpes-Côte d’Azur', '06': 'Provence-Alpes-Côte d’Azur', '13': 'Provence-Alpes-Côte d’Azur', '83': 'Provence-Alpes-Côte d’Azur', '84': 'Provence-Alpes-Côte d’Azur',
+    '971': 'Guadeloupe', '972': 'Martinique', '973': 'Guyane', '974': 'La Réunion', '976': 'Mayotte' };
+  function regionDe(cp) { cp = String(cp || ''); if (/^97/.test(cp)) return REGIONS[cp.slice(0, 3)] || 'Outre-mer'; if (/^20/.test(cp)) return 'Corse'; return REGIONS[cp.slice(0, 2)] || 'Autre'; }
+  function geocoder(s) {
+    var q = [s.adresse, s.code_postal, s.commune].filter(Boolean).join(' ');
+    if (!q) return Promise.resolve();
+    return fetch('https://api-adresse.data.gouv.fr/search/?limit=1&q=' + encodeURIComponent(q) + (s.code_postal ? '&postcode=' + encodeURIComponent(s.code_postal) : ''))
+      .then(function (r) { return r.json(); })
+      .then(function (g) { var f = g.features && g.features[0]; if (f) { s.lng = f.geometry.coordinates[0]; s.lat = f.geometry.coordinates[1]; } })
+      .catch(function () {});
+  }
+  function lancerPortail() {
+    ac.hidden = false;
+    carte('<h2>Chargement du portail…</h2><p>Lecture des sites et des pièces.</p>');
+    api('etat', null, 'GET').then(function (e) {
+      ETAT = e;
+      if (!e.utilisateur) { ecranConnexion(); return; }
+      return api('sites', null, 'GET').then(function (d) {
+        var manque = d.sites.filter(function (s) { return !(s.lat && s.lng); });
+        return manque.reduce(function (p, s) { return p.then(function () { return geocoder(s); }); }, Promise.resolve()).then(function () { return d; });
+      }).then(function (d) {
+        window.ARGOS_SITES = d.sites.map(function (s) {
+          var ref = s.references_ || {}, fiche = s.fiche || {};
+          return { cle: s.id, nom: s.nom || '', commune: s.commune || '—', cp: s.code_postal || '', region: regionDe(s.code_postal), rue: s.adresse || (s.nom || ''),
+            lat: s.lat || 46.6, lng: s.lng || 2.4, nature: ref.nature || fiche.nature || (s.nom || 'Bien immobilier'), groupe: fiche.designation ? fiche.designation.slice(0, 60) : '',
+            surface: ref.surface || '', cadastreTexte: ref.cadastre || '', titre: ref.titre || '', designation: fiche.designation || '', pieces: s.pieces || [], maj_le: s.maj_le };
+        });
+        document.getElementById('nomClient').textContent = d.client;
+        document.title = 'ARGOS · ' + d.client;
+        menuCompte();
+        ac.hidden = true;
+        if (!portailLance) { portailLance = true; demarrerArgos(); }
+      });
+    }).catch(function (e) {
+      if (e.statut === 401) { ecranConnexion(); return; }
+      carte('<h2>Portail momentanément indisponible</h2><p>' + h(e.message) + '<br>Réessayez dans quelques minutes.</p><button class="ac-btn" id="acRetour">Réessayer</button>');
+      document.getElementById('acRetour').onclick = lancerPortail;
+    });
+  }
+
+  /* ---------- aiguillage ---------- */
+  function aiguiller() {
+    var m;
+    if ((m = location.hash.match(/^#activation\/([A-Za-z0-9_-]+)$/))) { api('etat', null, 'GET').then(function (e) { ETAT = e; ecranActivation(m[1]); }); return; }
+    if ((m = location.hash.match(/^#appareil\/([A-Za-z0-9_-]+)$/))) { api('etat', null, 'GET').then(function (e) { ETAT = e; ecranAppairage(m[1]); }); return; }
+    if ((m = location.hash.match(/^#(code|mdp)\/([A-Za-z0-9_-]+)$/))) { api('etat', null, 'GET').then(function (e) { ETAT = e; ecranReinit(m[1], m[2]); }); return; }
+    api('etat', null, 'GET').then(function (e) {
+      ETAT = e;
+      if (echappement()) return;
+      if (e.utilisateur) { lancerPortail(); return; }
+      if (e.appareil && e.appareil.type === 'telephone') ecranCode('Bienvenue', 'Saisissez votre code secret.', 'connexion_code', null, function () { lancerPortail(); });
+      else ecranConnexion();
+    }).catch(function (e) {
+      carte('<h2>Portail momentanément indisponible</h2><p>' + h(e.message) + '<br>Réessayez dans quelques minutes.</p><button class="ac-btn" id="acRetour">Réessayer</button>');
+      document.getElementById('acRetour').onclick = aiguiller;
+    });
+  }
+  window.lancerPortail = lancerPortail;
+  aiguiller();
+})();
+</script>
+<script>
+function demarrerArgos() {
 /* ===================== ARGOS · maquette v0.62 · clients et documents fictifs, parcelles réelles lues au cadastre ===================== */
 var MISE_A_JOUR = 'octobre 2026';
 
@@ -479,6 +842,7 @@ var NOTAIRE = {
 };
 
 /* Avocats FIDAL par région : chargés par l’administrateur (fictifs ici) */
+function avocatDe(r) { return avocatDe(r) || { nom: 'Avocat FIDAL', bureau: 'Bureau FIDAL le plus proche' }; }
 var AVOCATS = {
   'Hauts-de-France': { nom: 'Avocat FIDAL (exemple)', bureau: 'Bureau de Lille' },
   'Normandie': { nom: 'Avocat FIDAL (exemple)', bureau: 'Bureau de Rouen' },
@@ -495,14 +859,16 @@ var DOMAINES = [
 ];
 /* Thématiques documentaires : même ordre que dans l'administration */
 var THEMES = [
-  /* Ordre voulu par JFD (v0.28) : désignation, puis plan, puis titre */
-  { titre: 'Note de désignation', docs: ['Désignation du bien selon le titre'] },
-  { titre: 'Plan du site', plan: true },
-  { titre: 'Titre', docs: ['Titre de propriété'] },
-  { titre: 'Exploitation', docs: ['Bail en cours'] },
-  { titre: 'Fiscalité', docs: ['Avis de taxe foncière'] },
-  { titre: 'Diagnostics', docs: ['Diagnostics techniques'] }
+  { titre: 'Désignation et plans', rub: 1 },
+  { titre: 'Titre', rub: 2 },
+  { titre: 'Exploitation', rub: 3 },
+  { titre: 'Fiscalité', rub: 4 },
+  { titre: 'Diagnostics', rub: 5 },
+  { titre: 'Organisation de l’immeuble / de la zone', rub: 6, conditionnel: true }
 ];
+function piecesRubrique(s, rub) { return (s.pieces || []).filter(function (p) { return p.rubrique === rub; }); }
+function themesDuSite(s) { return THEMES.filter(function (t) { return !t.conditionnel || piecesRubrique(s, t.rub).length; }); }
+function lienPiece(p) { return '/api/argos?action=piece&id=' + p.id; }
 /* v0.44 : ÉCHÉANCES À SURVEILLER — dates FICTIVES pour la maquette, tirées du numéro du site ;
    dans la version définitive, elles seront lues dans le bail et les diagnostics déposés */
 var AUJOURDHUI = new Date(2026, 9, 29);
@@ -634,23 +1000,8 @@ function blocBail(s) {
 }
 function codeSite(s) { return 'ARG-' + ('00' + (s.id + 1)).slice(-3); }
 
-/* Sites fictifs : adresses, parcelles et surfaces inventées */
-var SITES = [
-  { commune: 'Lille', cp: '59000', region: 'Hauts-de-France', rue: 'Port de Lille, quai de l’Industrie', lat: 50.6268, lng: 3.0395, nature: 'Entrepôt' },
-  { commune: 'Lesquin', cp: '59810', region: 'Hauts-de-France', rue: 'Zone d’activité, rue de la Logistique', lat: 50.5835, lng: 3.1245, nature: 'Plateforme logistique' },
-  { commune: 'Amiens', cp: '80080', region: 'Hauts-de-France', rue: 'Zone industrielle Nord, rue des Tanneurs', lat: 49.9258, lng: 2.3007, nature: 'Atelier' },
-  { commune: 'Amiens', cp: '80080', region: 'Hauts-de-France', rue: 'Zone industrielle Nord, boulevard Nord', lat: 49.9245, lng: 2.3080, nature: 'Commerce' },
-  { commune: 'Arras', cp: '62000', region: 'Hauts-de-France', rue: 'Zone industrielle Est, rue du Commerce', lat: 50.2865, lng: 2.8195, nature: 'Local d’activité' },
-  { commune: 'Rouen', cp: '76100', region: 'Normandie', rue: 'Port de Rouen, quai de France', lat: 49.4255, lng: 1.0545, nature: 'Entrepôt' },
-  { commune: 'Grand-Quevilly', cp: '76120', region: 'Normandie', rue: 'Zone portuaire, rue de la Forge', lat: 49.4130, lng: 1.0390, nature: 'Atelier' },
-  { commune: 'Le Havre', cp: '76600', region: 'Normandie', rue: 'Zone portuaire, route du Môle', lat: 49.4650, lng: 0.1650, nature: 'Plateforme logistique' },
-  { commune: 'Mondeville', cp: '14120', region: 'Normandie', rue: 'Zone d’activité, rue des Halles', lat: 49.1755, lng: -0.3215, nature: 'Entrepôt' },
-  { commune: 'Paris', cp: '75008', region: 'Île-de-France', rue: 'Quartier du Faubourg-du-Roule', lat: 48.8728, lng: 2.3135, nature: 'Immeuble de bureaux' },
-  { commune: 'Paris', cp: '75008', region: 'Île-de-France', rue: 'Quartier des Champs-Élysées', lat: 48.8738, lng: 2.3005, nature: 'Immeuble de bureaux' },
-  { commune: 'Gennevilliers', cp: '92230', region: 'Île-de-France', rue: 'Port de Gennevilliers, route du Bassin', lat: 48.9350, lng: 2.2900, nature: 'Entrepôt' },
-  { commune: 'Rennes', cp: '35000', region: 'Bretagne', rue: 'Zone industrielle Sud-Est, rue de la Mine', lat: 48.0969, lng: -1.6241, nature: 'Entrepôt' },
-  { commune: 'Brest', cp: '29200', region: 'Bretagne', rue: 'Port de commerce, rue du Bassin', lat: 48.3847, lng: -4.4713, nature: 'Entrepôt' }
-];
+/* Sites : fournis par le pont /api/argos (lot 3), préparés par le script d'accès ci-dessus */
+var SITES = window.ARGOS_SITES || [];
 SITES.forEach(function (s, i) { s.id = i; });
 
 /* ---------- Fonds de carte : Géoplateforme IGN, gratuits, sans clé ---------- */
@@ -1073,7 +1424,7 @@ var IC_PLAN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke
 var IC_DL = '<svg class="dl" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>';
 
 function afficherFiche(s) {
-  var a = AVOCATS[s.region];
+  var a = avocatDe(s.region);
   var i = visibles.findIndex(function (x) { return x.id === s.id; });
   document.getElementById('fiche').innerHTML =
     '<button type="button" class="retour retour-tel" data-retour>Retour à l’ensemble des sites</button>' +
@@ -1102,17 +1453,12 @@ function afficherFiche(s) {
     '</div></div>' +
     '<div class="bloc">' + titreBloc('docs', 'Documents') + (etatBlocs.docs ? '<div class="contenu-bloc">' : '<div class="contenu-bloc" hidden>') +
       boutonDocsPlier() +
-      THEMES.map(function (t) {
-        /* v0.46 : arborescence — la catégorie, repliable, puis ses documents reliés par des traits ; plus d'icône de document */
+      themesDuSite(s).map(function (t) {
+        /* lot 3 : les pièces déposées par l'étude, rubrique par rubrique, reliées par des traits ; un clic ouvre la pièce (session vérifiée) */
         var ouvert = etatThemes[t.titre] !== false;
-        var lignes;
-        if (t.plan) lignes = '<li><button type="button" class="doc" data-doc>Plan cadastral colorisé<span class="genere">généré</span>' + IC_DL + '</button></li>';
-        else {
-          /* maquette : certaines thématiques sans document, pour montrer le message */
-          var vide = !t.docs.length || (t.titre === 'Exploitation' && s.id % 3 === 2);
-          lignes = vide ? '<li class="sans-doc">Aucun document à ce stade</li>'
-            : t.docs.map(function (d) { return '<li><button type="button" class="doc" data-doc>' + d + IC_DL + '</button></li>'; }).join('');
-        }
+        var liste = piecesRubrique(s, t.rub);
+        var lignes = !liste.length ? '<li class="sans-doc">Aucun document à ce stade</li>'
+          : liste.map(function (p) { return '<li><a class="doc" href="' + lienPiece(p) + '" target="_blank" rel="noopener" title="Déposé le ' + new Date(p.depose_le).toLocaleDateString('fr-FR') + '">' + echapper(p.nom) + IC_DL + '</a></li>'; }).join('');
         return '<div class="theme"><button type="button" class="titre-theme" data-tt="' + t.titre + '" aria-expanded="' + ouvert + '">' + CHEV + t.titre + '</button>' +
           '<ul class="arbre"' + (ouvert ? '' : ' hidden') + '>' + lignes + '</ul></div>';
       }).join('') +
@@ -1126,6 +1472,7 @@ function afficherFiche(s) {
 var etatBlocs = { export: false, carac: false, bail: false, echeances: false, docs: true, assist: false };
 /* catégories de documents : toutes dépliées par défaut ; le choix est gardé d'un site à l'autre */
 var etatThemes = {};
+function echapper(t) { return String(t == null ? '' : t).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
 function docsTousOuverts() { return THEMES.every(function (t) { return etatThemes[t.titre] !== false; }); }
 function boutonDocsPlier() {
   var tout = docsTousOuverts();
@@ -1140,7 +1487,7 @@ function carteIntervenant(s, d) {
   var objet = encodeURIComponent('ARGOS · ' + codeSite(s) + ' · ' + s.commune + ', ' + s.rue + ' · ' + d.titre);
   return '<div class="carte-contact"><span class="domaine">' + d.titre + '</span>' + (d.cle === 'notaire'
     ? '<strong>' + NOTAIRE.nom + '</strong>' + NOTAIRE.role + '<br><a href="mailto:' + NOTAIRE.courriel + '?subject=' + objet + '">Écrire au sujet de ce site</a>'
-    : '<strong>' + d.avocat + '</strong>' + AVOCATS[s.region].bureau + '<br><a href="#" data-avocat>Écrire au sujet de ce site</a>') + '</div>';
+    : '<strong>' + d.avocat + '</strong>' + avocatDe(s.region).bureau + '<br><a href="#" data-avocat>Écrire au sujet de ce site</a>') + '</div>';
 }
 document.getElementById('fiche').addEventListener('click', function (e) {
   var n = e.target.closest('[data-nav]');
@@ -1175,7 +1522,6 @@ document.getElementById('fiche').addEventListener('click', function (e) {
   if (pt) { if (!pt.disabled) actionPaint(SITES[courant], pt.getAttribute('data-paint')); return; }
   var ex = e.target.closest('[data-export]');
   if (ex) { if (!ex.disabled) exporterFiche(SITES[courant], ex.getAttribute('data-bail') === '1', ex.getAttribute('data-export')); return; }
-  if (e.target.closest('[data-doc]')) { annoncer('Maquette : aucun document réel. Le téléchargement sécurisé viendra avec la version définitive.'); return; }
   if (e.target.closest('[data-avocat]')) { e.preventDefault(); annoncer('Maquette : les coordonnées de l’avocat seront chargées dans l’administration.'); }
 });
 
@@ -1372,18 +1718,26 @@ function construirePdf(s, avecBail, plans) {
 
   /* --- 4. Liste des pièces --- */
   y = titreCol('Liste des pièces disponibles', xG, larg, y + 1);
-  y = deuxColonnes(THEMES.filter(function (t) { return avecBail || t.titre !== 'Exploitation'; }).map(function (t) {
-    var v;
-    if (t.plan) v = 'Plan cadastral colorisé';
-    else v = (!t.docs.length || (t.titre === 'Exploitation' && s.id % 3 === 2)) ? 'Aucun document à ce stade' : t.docs.join(', ');
-    return { lib: t.titre, val: v };
+  y = deuxColonnes(themesDuSite(s).filter(function (t) { return avecBail || t.titre !== 'Exploitation'; }).map(function (t) {
+    var liste = piecesRubrique(s, t.rub);
+    return { lib: t.titre, val: liste.length ? liste.map(function (p) { return p.nom; }).join(', ') : 'Aucun document à ce stade' };
   }), y);
+  /* lot 3 : code QR vers la fiche du site sur le portail (flashable au téléphone, cliquable à l'écran) — jamais d'adresse en clair */
+  try {
+    var urlSite = location.origin + '/#site/' + (s.cle || s.id);
+    var qr = qrcode(0, 'M'); qr.addData(urlSite); qr.make();
+    var tailleQr = 22, xQr = L_ - M - tailleQr, yQr = H_ - 14 - tailleQr - 2;
+    doc.addImage(qr.createDataURL(4, 0), 'GIF', xQr, yQr, tailleQr, tailleQr);
+    doc.link(xQr, yQr, tailleQr, tailleQr, { url: urlSite });
+    police(6.5); couleur(PDF_C.doux); doc.text(pdfTexte('Consulter les pièces'), xQr + tailleQr / 2, yQr + tailleQr + 3, { align: 'center' });
+    doc.link(xQr, yQr + tailleQr, tailleQr, 4, { url: urlSite });
+  } catch (err) { /* sans code QR si la bibliothèque manque */ }
 
   /* --- Pied de page --- */
   couleur(PDF_C.trait, 'trait'); doc.setLineWidth(0.3); doc.line(M, H_ - 14, L_ - M, H_ - 14);
   police(7); couleur(PDF_C.doux);
   doc.text(doc.splitTextToSize(pdfTexte('Fiche établie par ARGOS, FIDAL Notaires, à partir de la documentation dont dispose le cabinet à cette date. Elle ne garantit pas qu’aucune pièce ne manque et ne constitue pas un audit.'), larg), M, H_ - 10.5);
-  couleur(PDF_C.carmin); doc.text(pdfTexte('Maquette · données fictives   ·   ' + nom + '.pdf'), M, H_ - 4.5);
+  couleur(PDF_C.doux); doc.text(pdfTexte(nom + '.pdf'), M, H_ - 4.5);
   doc.__hauteurUtilisee = y;
   doc.setProperties({ title: nom, subject: 'Fiche du site ' + ident, author: 'FIDAL Notaires', creator: 'ARGOS' });
   return doc;
@@ -1802,10 +2156,10 @@ function ouvrirContact() {
   var s = courant !== null ? SITES[courant] : null;
   var html = '<div class="interloc"><strong>' + NOTAIRE.nom + '</strong>' + NOTAIRE.role + '<br><a href="mailto:' + NOTAIRE.courriel + '">' + NOTAIRE.courriel + '</a></div>';
   if (s) {
-    var a = AVOCATS[s.region];
+    var a = avocatDe(s.region);
     html += '<div class="interloc"><strong>' + a.nom + '</strong>' + a.bureau + ', avocat du secteur de ' + s.commune + '</div>';
   } else {
-    regions.forEach(function (r) { html += '<div class="interloc"><strong>' + AVOCATS[r].nom + '</strong>' + AVOCATS[r].bureau + ' · ' + r + '</div>'; });
+    regions.forEach(function (r) { html += '<div class="interloc"><strong>' + avocatDe(r).nom + '</strong>' + avocatDe(r).bureau + ' · ' + r + '</div>'; });
   }
   document.getElementById('contenuContact').innerHTML = html;
   voile.classList.add('ouvert');
@@ -2068,6 +2422,7 @@ function lireZonage(s, essai) {
 
 /* ---------- Démarrage ---------- */
 afficherAccueil();
+(function () { var m = location.hash.match(/^#site\/(\d+)$/); if (m) { var s = SITES.filter(function (x) { return String(x.cle) === m[1]; })[0]; if (s) setTimeout(function () { choisir(s.id, true); }, 400); } })();
 carte.invalidateSize();
 cadrerEnsemble(false);
 synchroniser();
@@ -2090,6 +2445,7 @@ chargerIlc();
   var file = SITES.slice().sort(function (a, b) { return (b.id === courant) - (a.id === courant); });
   file.reduce(function (p, s) { return p.then(function () { return lireParcelle(s); }).then(function () { return attendre(150); }); }, Promise.resolve());
 })();
+} /* fin demarrerArgos */
 </script>
 </body>
 </html>
