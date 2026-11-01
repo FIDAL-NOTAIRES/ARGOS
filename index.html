@@ -1736,7 +1736,7 @@ function construirePdf(s, avecBail, plans) {
   /* --- Pied de page --- */
   couleur(PDF_C.trait, 'trait'); doc.setLineWidth(0.3); doc.line(M, H_ - 14, L_ - M, H_ - 14);
   police(7); couleur(PDF_C.doux);
-  doc.text(doc.splitTextToSize(pdfTexte('Fiche établie par ARGOS, FIDAL Notaires, à partir de la documentation dont dispose le cabinet à cette date. Elle ne garantit pas qu’aucune pièce ne manque et ne constitue pas un audit.'), larg), M, H_ - 10.5);
+  doc.text(doc.splitTextToSize(pdfTexte('Fiche établie par ARGOS, FIDAL Notaires, à partir de la documentation dont dispose l’étude à cette date. Elle ne garantit pas qu’aucune pièce ne manque et ne constitue pas un audit.'), larg), M, H_ - 10.5);
   couleur(PDF_C.doux); doc.text(pdfTexte(nom + '.pdf'), M, H_ - 4.5);
   doc.__hauteurUtilisee = y;
   doc.setProperties({ title: nom, subject: 'Fiche du site ' + ident, author: 'FIDAL Notaires', creator: 'ARGOS' });
@@ -2198,6 +2198,7 @@ function annoncer(t) {
   /* Deux sites d'une même ville pour le survol */
   var survol = SITES.filter(function (s) { return s.commune === 'Paris'; }).slice(0, 2);
   if (survol.length < 2) survol = SITES.slice(0, 2);
+  if (survol.length < 2 || !formes.carte[survol[0].id] || !formes.carte[survol[1].id]) { titreSeul(); return; } /* lot 3 : moins de deux sites, titre seul */
   var cLng = (survol[0].lng + survol[1].lng) / 2, cLat = (survol[0].lat + survol[1].lat) / 2;
   var carte3d;
   try {
