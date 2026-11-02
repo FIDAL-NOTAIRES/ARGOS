@@ -38,6 +38,7 @@ const DUREE_APPAREIL_J = 400;                        // cookie d'appareil : 400 
 const DUREE_APPAIRAGE_MS = 10 * 60 * 1000;           // code QR : 10 minutes
 const SUSPENSION_MS = 48 * 60 * 60 * 1000;           // 5 échecs → 48 heures
 // LOT 4 (02/11/2026) — pause automatique pour volume inhabituel ; rétablissement par le responsable depuis le portail
+const MESSAGE_CADASTRE = "Les références cadastrales de ce site ne sont plus à jour, probablement à la suite d'une division ou d'un remaniement cadastral. Merci de vous rapprocher de FIDAL Notaires pour obtenir une fiche de synthèse actualisée.";
 const MESSAGE_PAUSE = "Votre accès est mis en pause pour un volume de consultations inhabituel. Votre responsable peut le rétablir depuis le portail.";
 const COOKIE_SESSION = "argos_session", COOKIE_APPAREIL = "argos_appareil";
 const CODES_BANALS = /^(\d)\1{5}$|^012345$|^123456$|^234567$|^345678$|^456789$|^987654$|^876543$|^765432$|^654321$|^543210$|^112233$|^121212$|^123123$|^000000$|^111111$/;
@@ -83,6 +84,61 @@ function estTelephone(ua) { return /iPhone|iPad|Android|Mobile/i.test(String(ua 
 function origine(req) { return `https://${req.headers["x-forwarded-host"] || req.headers.host}`; }
 
 // ---------- signature Scaleway (lecture seule) ----------
+// Relais d'un objet du stockage vers le navigateur (flux continu, plages partielles, nom maîtrisé)
+async function relayer(req, res, bucket, cle, nomFichier) {
+  const amont = await fetch(adresseLecture(bucket, cle, 60), { headers: req.headers.range ? { Range: req.headers.range } : {} });
+  if (!amont.ok && amont.status !== 206) {
+    console.error("[argos] lecture stockage", amont.status, await amont.text().catch(() => ""));
+    res.statusCode = 502; res.setHeader("Content-Type", "text/plain; charset=utf-8");
+    return res.end("La pièce est momentanément indisponible. Réessayez dans quelques minutes.");
+  }
+  const nom = nomPropre(nomFichier);
+  res.statusCode = amont.status;
+  res.setHeader("Content-Type", amont.headers.get("content-type") || "application/octet-stream");
+  for (const h of ["content-length", "content-range", "accept-ranges", "etag", "last-modified"]) { const v = amont.headers.get(h); if (v) res.setHeader(h, v); }
+  res.setHeader("Content-Disposition", `inline; filename="${nom.replace(/[^\x20-\x7E]/g, "_").replace(/"/g, "")}"; filename*=UTF-8''${encodeURIComponent(nom)}`);
+  res.setHeader("Cache-Control", "private, no-store");
+  if (!amont.body) return res.end();
+  await new Promise((ok, ko) => { const flux = Readable.fromWeb(amont.body); flux.on("error", ko); res.on("close", ok); res.on("error", ko); flux.pipe(res).on("finish", ok); });
+}
+// Références cadastrales saisies librement dans ARGOSAdmin (« Section AB n° 123, 124 », « AL 4 », « ZD 12 et 13 ») → liste de parcelles
+function parcellesDepuisTexte(texteRefs) {
+  const mots = String(texteRefs || "").toUpperCase().replace(/N[°º]/g, " ").replace(/[,;/()]/g, " ").split(/\s+/).filter(Boolean);
+  const bruit = new Set(["SECTION", "SECTIONS", "PARCELLE", "PARCELLES", "ET", "DE", "DU", "DES", "LA", "LE", "LES", "A", "AU", "LIEUDIT", "LIEU-DIT", "CADASTRE", "CADASTREE", "CADASTREES"]);
+  const out = [], vues = new Set(); let section = null, m;
+  for (const mot of mots) {
+    if (bruit.has(mot)) continue;
+    if ((m = mot.match(/^([0-9]?[A-Z]{1,2})(\d{1,4})$/))) { section = m[1]; }
+    else if (/^[0-9]?[A-Z]{1,2}$/.test(mot)) { section = mot; continue; }
+    else if ((m = mot.match(/^(\d{1,4})$/)) && section) { m = [mot, section, m[1]]; }
+    else continue;
+    const cle = `${m[1]} ${String(parseInt(m[2], 10))}`;
+    if (!vues.has(cle)) { vues.add(cle); out.push({ section: m[1], numero: String(parseInt(m[2], 10)) }); }
+  }
+  return out;
+}
+function normaliser(t) { return String(t || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().replace(/[^A-Z0-9]+/g, " ").trim(); }
+async function codeInsee(codePostal, commune) {
+  const cp = String(codePostal || "").replace(/\D/g, "");
+  const quete = cp.length === 5 ? `codePostal=${cp}` : (commune ? `nom=${encodeURIComponent(commune)}` : "");
+  if (!quete) return null;
+  const r = await fetch(`https://geo.api.gouv.fr/communes?${quete}&fields=code,nom&limit=20`);
+  if (!r.ok) throw new Error(`geo.api.gouv ${r.status}`);
+  const liste = await r.json();
+  if (!Array.isArray(liste) || !liste.length) return null;
+  if (liste.length === 1) return liste[0].code;
+  const voulu = normaliser(commune);
+  const exact = liste.find((c) => normaliser(c.nom) === voulu) || liste.find((c) => voulu && normaliser(c.nom).includes(voulu));
+  return exact ? exact.code : null;
+}
+// true : la parcelle existe ; false : réponse valide sans parcelle ; exception : cadastre injoignable
+async function parcelleExiste(insee, section, numero) {
+  const sec = section.padStart(2, "0"), num = String(numero).padStart(4, "0");
+  const r = await fetch(`https://apicarto.ign.fr/api/cadastre/parcelle?code_insee=${insee}&section=${sec}&numero=${num}`);
+  if (!r.ok) throw new Error(`apicarto ${r.status}`);
+  const g = await r.json();
+  return !!(g.features && g.features.length);
+}
 function nomPropre(n) { return texte(n, 150).replace(/[\\/:*?"<>|\x00-\x1F]/g, "_").replace(/\s+/g, " ").trim() || "piece.pdf"; }
 function hex(b) { return Buffer.from(b).toString("hex"); }
 function hmac(cle, msg) { return crypto.createHmac("sha256", cle).update(msg, "utf8").digest(); }
@@ -340,7 +396,8 @@ const actions = {
     const u = await sessionCourante(sql, req, client);
     if (!u) { res.statusCode = 401; return { erreur: "Session expirée." }; }
     const sites = await sql`
-      SELECT s.id, s.nom, s.adresse, s.commune, s.code_postal, s.lat, s.lng, s.references_, s.fiche, s.maj_le
+      SELECT s.id, s.nom, s.adresse, s.commune, s.code_postal, s.lat, s.lng, s.references_, s.fiche, s.maj_le, s.cadastre_alerte_le,
+             (SELECT p.id FROM argos_piece p WHERE p.site_id = s.id AND p.est_plan = TRUE AND p.copie_principale = TRUE ORDER BY p.depose_le DESC LIMIT 1) AS plan_piece_id
       FROM argos_site s WHERE s.client_id = ${client.id}
         AND (${u.role} = 'responsable' OR NOT EXISTS (SELECT 1 FROM argos_site_exclu e WHERE e.site_id = s.id AND e.utilisateur_id = ${u.id}))
       ORDER BY s.commune, s.nom, s.id`;
@@ -416,20 +473,68 @@ const actions = {
     } catch (e) { console.warn("[argos] proportion", e.message); }
     // 02/11 : le portail SERT la pièce lui-même (flux continu) au lieu de renvoyer vers le stockage ;
     // le client ne voit jamais l'adresse ni le nom du prestataire de stockage, et le nom de fichier est maîtrisé ici.
-    const amont = await fetch(adresseLecture(r[0].bucket_principal, r[0].cle_objet, 60), { headers: req.headers.range ? { Range: req.headers.range } : {} });
-    if (!amont.ok && amont.status !== 206) {
-      console.error("[argos] lecture stockage", amont.status, await amont.text().catch(() => ""));
-      res.statusCode = 502; res.setHeader("Content-Type", "text/plain; charset=utf-8");
-      return res.end("La pièce est momentanément indisponible. Réessayez dans quelques minutes.");
+    return relayer(req, res, r[0].bucket_principal, r[0].cle_objet, r[0].nom_fichier);
+  },
+
+  // PLAN DU SITE (image produite dans PAINT par l'étude, déposée dans ARGOSAdmin) : servi pour la fiche de synthèse,
+  // sans compter dans les seuils de téléchargement ni dans le journal (ce n'est pas une consultation de pièce)
+  async plan(sql, p, req, res, client, url) {
+    const u = await sessionCourante(sql, req, client);
+    if (!u) { res.statusCode = 401; res.setHeader("Content-Type", "text/plain; charset=utf-8"); return res.end("Session expirée : reconnectez-vous au portail."); }
+    const siteId = entier(url.searchParams.get("site_id"), 0);
+    const r = await sql`
+      SELECT p.cle_objet, p.bucket_principal, p.nom_fichier
+      FROM argos_piece p JOIN argos_site s ON s.id = p.site_id
+      WHERE s.id = ${siteId} AND s.client_id = ${client.id} AND p.est_plan = TRUE AND p.copie_principale = TRUE
+        AND (${u.role} = 'responsable' OR NOT EXISTS (SELECT 1 FROM argos_site_exclu e WHERE e.site_id = s.id AND e.utilisateur_id = ${u.id}))
+      ORDER BY p.depose_le DESC LIMIT 1`;
+    if (!r.length) { res.statusCode = 404; return res.end("Aucun plan déposé pour ce site."); }
+    return relayer(req, res, r[0].bucket_principal, r[0].cle_objet, r[0].nom_fichier);
+  },
+
+  // CONTRÔLE CADASTRAL À LA DEMANDE DE FICHE (02/11/2026) : chaque parcelle du site doit exister encore au cadastre (API Carto IGN).
+  // Une parcelle disparue ou renumérotée → la fiche ENTIÈRE est bloquée, message au client, alerte à l'étude dans ARGOSAdmin.
+  // Références absentes ou illisibles, ou cadastre injoignable : on ne bloque pas (rien ne prouve un changement), on le note seulement.
+  async controle_cadastre(sql, p, req, res, client) {
+    const u = await sessionCourante(sql, req, client);
+    if (!u) { res.statusCode = 401; return { erreur: "Session expirée." }; }
+    const siteId = entier(p.site_id, 0);
+    const r = await sql`SELECT s.id, s.nom, s.commune, s.code_postal, s.references_, s.insee, s.cadastre_alerte_le, s.cadastre_alerte_detail
+                        FROM argos_site s WHERE s.id = ${siteId} AND s.client_id = ${client.id}
+                          AND (${u.role} = 'responsable' OR NOT EXISTS (SELECT 1 FROM argos_site_exclu e WHERE e.site_id = s.id AND e.utilisateur_id = ${u.id}))`;
+    if (!r.length) { res.statusCode = 404; return { erreur: "Site introuvable." }; }
+    const s = r[0];
+    const parcelles = parcellesDepuisTexte((s.references_ || {}).cadastre);
+    if (!parcelles.length) return { controle: "sans_reference", bloque: false };
+    let insee = s.insee;
+    try {
+      if (!insee) {
+        insee = await codeInsee(s.code_postal, s.commune);
+        if (insee) await sql`UPDATE argos_site SET insee = ${insee} WHERE id = ${s.id}`;
+      }
+      if (!insee) return { controle: "commune_inconnue", bloque: false };
+      const manquantes = [];
+      for (const pc of parcelles) {
+        const existe = await parcelleExiste(insee, pc.section, pc.numero);
+        if (existe === false) manquantes.push(`${pc.section} ${pc.numero}`);
+      }
+      if (!manquantes.length) {
+        await sql`UPDATE argos_site SET cadastre_controle_le = NOW(), cadastre_alerte_le = NULL, cadastre_alerte_detail = NULL WHERE id = ${s.id}`;
+        return { controle: "ok", bloque: false, parcelles: parcelles.length };
+      }
+      const detail = `Parcelle${manquantes.length > 1 ? "s" : ""} ${manquantes.join(", ")} introuvable${manquantes.length > 1 ? "s" : ""} au cadastre de ${s.commune || insee} (contrôle à la demande de fiche par ${u.prenom} ${u.nom}).`;
+      const dejaAlerte = s.cadastre_alerte_le && new Date(s.cadastre_alerte_le) > new Date(Date.now() - 24 * 60 * 60 * 1000);
+      await sql`UPDATE argos_site SET cadastre_controle_le = NOW(), cadastre_alerte_le = COALESCE(cadastre_alerte_le, NOW()), cadastre_alerte_detail = ${detail} WHERE id = ${s.id}`;
+      if (!dejaAlerte) {
+        await sql`INSERT INTO argos_evenement (client_id, nature, detail) VALUES (${client.id}, 'cadastre_evolue', ${`Site « ${s.nom} » : ${detail} Fiche de synthèse bloquée côté client jusqu'à reprise du site dans ARGOSAdmin.`})`;
+        await courriel(sql, client.id, [process.env.ADMIN_COURRIEL], `[ARGOS] Références cadastrales à reprendre — ${client.nom}, ${s.nom}`,
+          `Bonjour,\n\n${detail}\n\nLa fiche de synthèse de ce site est bloquée côté client (message : références cadastrales plus à jour, se rapprocher de FIDAL Notaires) jusqu'à la mise à jour des références dans ARGOSAdmin.\n\nFIDAL Notaires — ARGOS`);
+      }
+      return { controle: "evolue", bloque: true, message: MESSAGE_CADASTRE };
+    } catch (e) {
+      console.warn("[argos] contrôle cadastral indisponible", e.message);
+      return { controle: "indisponible", bloque: false };
     }
-    const nom = nomPropre(r[0].nom_fichier);
-    res.statusCode = amont.status;
-    res.setHeader("Content-Type", amont.headers.get("content-type") || "application/octet-stream");
-    for (const h of ["content-length", "content-range", "accept-ranges", "etag", "last-modified"]) { const v = amont.headers.get(h); if (v) res.setHeader(h, v); }
-    res.setHeader("Content-Disposition", `inline; filename="${nom.replace(/[^\x20-\x7E]/g, "_").replace(/"/g, "")}"; filename*=UTF-8''${encodeURIComponent(nom)}`);
-    res.setHeader("Cache-Control", "private, no-store");
-    if (!amont.body) return res.end();
-    await new Promise((ok, ko) => { const flux = Readable.fromWeb(amont.body); flux.on("error", ko); res.on("close", ok); res.on("error", ko); flux.pipe(res).on("finish", ok); });
   },
 
   async equipe(sql, p, req, res, client) {
