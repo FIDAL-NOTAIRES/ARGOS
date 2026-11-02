@@ -1,4 +1,7 @@
 {
+  "functions": {
+    "api/argos.js": { "maxDuration": 60 }
+  },
   "headers": [
     {
       "source": "/(.*)",
