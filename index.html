@@ -1640,13 +1640,20 @@ function construirePdf(s, avecBail, plans) {
   police(12.5, true); couleur(PDF_C.nuit); doc.text(doc.splitTextToSize(pdfTexte(env[0]), larg - 70)[0], M, yg);
   police(9.5); couleur(PDF_C.texte);
   env.slice(1).forEach(function (l) { yg += 4.6; doc.text(doc.splitTextToSize(pdfTexte(l), larg - 70)[0], M, yg); });
-  var droite = [
-    ['Site ' + ident, 8, false, PDF_C.doux],
-    ['Référence ' + codeSite(s), 8, false, PDF_C.doux],
-    ['Établie le ' + dateLongue(maintenant), 8, false, PDF_C.doux]
-  ], yd = 28;
-  droite.forEach(function (d) { police(d[1], d[2]); couleur(d[3]); doc.text(pdfTexte(d[0]), L_ - M, yd, { align: 'right' }); yd += 4.2; });
-  var yFilet = Math.max(yg, yd - 4.2) + 3.2;
+  /* 02/11 : les trois références du document (site, référence, date d'établissement) en TABLEAU DE TROIS CASES côte à côte,
+     à droite du bloc d'adresse ; chaque valeur est réduite au besoin pour tenir dans sa case */
+  var tabL = Math.min(96, larg - 78), caseL = tabL / 3, tabX = L_ - M - tabL, tabY = yg - 4.2, tabH = 11.5;
+  doc.setFillColor(236, 245, 246); doc.rect(tabX, tabY, tabL, tabH, 'F');
+  couleur(PDF_C.trait, 'trait'); doc.setLineWidth(0.25); doc.rect(tabX, tabY, tabL, tabH, 'S');
+  doc.line(tabX + caseL, tabY, tabX + caseL, tabY + tabH); doc.line(tabX + 2 * caseL, tabY, tabX + 2 * caseL, tabY + tabH);
+  [['SITE', ident], ['RÉFÉRENCE', codeSite(s)], ['ÉTABLIE LE', dateLongue(maintenant)]].forEach(function (c, k) {
+    var cx = tabX + k * caseL + 2.4, txt = pdfTexte(c[1]), taille = 8.6;
+    police(6.3, true); couleur(PDF_C.doux); doc.text(pdfTexte(c[0]), cx, tabY + 4);
+    police(taille, true); couleur(PDF_C.nuit);
+    while (taille > 6.4 && doc.getTextWidth(txt) > caseL - 4.4) { taille -= 0.3; doc.setFontSize(taille); }
+    doc.text(doc.splitTextToSize(txt, caseL - 4.4)[0], cx, tabY + 8.9);
+  });
+  var yFilet = Math.max(yg, tabY + tabH) + 3.2;
   couleur(PDF_C.canard, 'trait'); doc.setLineWidth(0.6); doc.line(M, yFilet, L_ - M, yFilet);
   y = yFilet + 3;  /* v0.58 : le premier titre ne chevauche plus le filet */
 
