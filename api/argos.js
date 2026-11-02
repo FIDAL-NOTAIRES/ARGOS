@@ -343,7 +343,7 @@ const actions = {
       ORDER BY s.commune, s.nom, s.id`;
     const ids = sites.map((s) => s.id);
     const pieces = ids.length ? await sql`
-      SELECT p.id, p.site_id, p.rubrique, p.nom_fichier, p.taille, p.depose_le
+      SELECT p.id, p.site_id, p.rubrique, COALESCE(NULLIF(p.intitule, ''), p.nom_fichier) AS nom_fichier, p.taille, p.depose_le
       FROM argos_piece p WHERE p.site_id = ANY(${ids}) AND p.copie_principale = TRUE ORDER BY p.rubrique, p.depose_le DESC` : [];
     const parSite = {};
     for (const x of pieces) (parSite[x.site_id] = parSite[x.site_id] || []).push({ id: x.id, rubrique: x.rubrique, libelle: RUBRIQUES[x.rubrique], nom: x.nom_fichier, taille: x.taille, depose_le: x.depose_le });
@@ -401,7 +401,7 @@ const actions = {
       FROM argos_connexion cx LEFT JOIN argos_utilisateur u ON u.id = cx.utilisateur_id LEFT JOIN argos_appareil a ON a.id = cx.appareil_id
       WHERE cx.client_id = ${client.id} ORDER BY cx.horodatage DESC LIMIT 200`;
     const telechargements = await sql`
-      SELECT t.horodatage, u.prenom, u.nom, p.nom_fichier, s.nom AS site, s.commune
+      SELECT t.horodatage, u.prenom, u.nom, COALESCE(NULLIF(p.intitule, ''), p.nom_fichier) AS nom_fichier, s.nom AS site, s.commune
       FROM argos_telechargement t JOIN argos_utilisateur u ON u.id = t.utilisateur_id JOIN argos_piece p ON p.id = t.piece_id JOIN argos_site s ON s.id = p.site_id
       WHERE u.client_id = ${client.id} ORDER BY t.horodatage DESC LIMIT 200`;
     return { membres, connexions, telechargements };
