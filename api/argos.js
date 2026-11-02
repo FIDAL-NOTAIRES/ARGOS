@@ -396,7 +396,7 @@ const actions = {
     const u = await sessionCourante(sql, req, client);
     if (!u) { res.statusCode = 401; return { erreur: "Session expirée." }; }
     const sites = await sql`
-      SELECT s.id, s.nom, s.adresse, s.commune, s.code_postal, s.lat, s.lng, s.references_, s.fiche, s.maj_le, s.cadastre_alerte_le,
+      SELECT s.id, s.nom, s.adresse, s.commune, s.code_postal, s.lat, s.lng, s.references_, s.fiche, s.maj_le, s.cadastre_alerte_le, s.organisation_visible,
              (SELECT p.id FROM argos_piece p WHERE p.site_id = s.id AND p.est_plan = TRUE AND p.copie_principale = TRUE ORDER BY p.depose_le DESC LIMIT 1) AS plan_piece_id
       FROM argos_site s WHERE s.client_id = ${client.id}
         AND (${u.role} = 'responsable' OR NOT EXISTS (SELECT 1 FROM argos_site_exclu e WHERE e.site_id = s.id AND e.utilisateur_id = ${u.id}))
