@@ -362,6 +362,12 @@ body.charge-cartes .carte-zone,body.charge-cartes .incrustations{opacity:0}
   .bandeau-visite{flex-direction:column;align-items:flex-start;gap:6px;max-width:calc(100% - 24px)}
   .fleche{top:auto;bottom:150px}
 }
+#blocageFiche{position:fixed;inset:0;z-index:3000;background:rgba(15,34,56,.72);display:flex;align-items:center;justify-content:center;padding:20px}
+#blocageFiche[hidden]{display:none}
+#blocageFiche .bf-carte{background:#fff;color:#1B2430;border-radius:14px;max-width:520px;width:100%;padding:26px 28px;box-shadow:0 20px 60px rgba(0,0,0,.35);border-top:6px solid #A01040}
+#blocageFiche h3{margin:0 0 12px;font-size:19px;color:#A01040}
+#blocageFiche p{margin:0 0 18px;line-height:1.55;font-size:15px}
+#blocageFiche .ac-btn{width:auto;min-width:140px}
 </style>
 </head>
 <body class="charge-cartes">
@@ -802,7 +808,8 @@ body.charge-cartes .carte-zone,body.charge-cartes .incrustations{opacity:0}
           var ref = s.references_ || {}, fiche = s.fiche || {};
           return { cle: s.id, nom: s.nom || '', commune: s.commune || '—', cp: s.code_postal || '', region: regionDe(s.code_postal), rue: s.adresse || (s.nom || ''),
             lat: s.lat || 46.6, lng: s.lng || 2.4, nature: ref.nature || fiche.nature || (s.nom || 'Bien immobilier'), groupe: fiche.designation ? fiche.designation.slice(0, 60) : '',
-            surface: ref.surface || '', cadastreTexte: ref.cadastre || '', titre: ref.titre || '', designation: fiche.designation || '', pieces: s.pieces || [], maj_le: s.maj_le };
+            surface: ref.surface || '', cadastreTexte: ref.cadastre || '', titre: ref.titre || '', designation: fiche.designation || '', pieces: s.pieces || [], maj_le: s.maj_le,
+            planPieceId: s.plan_piece_id || null };
         });
         document.getElementById('nomClient').textContent = d.client;
         document.title = 'ARGOS · ' + d.client;
@@ -1527,8 +1534,6 @@ document.getElementById('fiche').addEventListener('click', function (e) {
     document.querySelector('[data-docs-plier]').outerHTML = boutonDocsPlier();
     return;
   }
-  var pt = e.target.closest('[data-paint]');
-  if (pt) { if (!pt.disabled) actionPaint(SITES[courant], pt.getAttribute('data-paint')); return; }
   var ex = e.target.closest('[data-export]');
   if (ex) { if (!ex.disabled) exporterFiche(SITES[courant], ex.getAttribute('data-bail') === '1', ex.getAttribute('data-export')); return; }
   if (e.target.closest('[data-avocat]')) { e.preventDefault(); annoncer('Maquette : les coordonnées de l’avocat seront chargées dans l’administration.'); }
@@ -1571,12 +1576,6 @@ function blocExport(s) {
     ligneExport(false, 'Fiche', 'Sans les éléments du bail', true) +
     ligneExport(true, 'Fiche avec bail', b ? 'Version complète' : 'Aucun bail pour ce site', !!b) +
     '<div class="note-maquette">Mail : un brouillon à ouvrir dans Outlook, la fiche déjà jointe ; il reste à choisir le destinataire.</div>' +
-    /* v0.62 : PONT VERS PAINT — dans la version définitive, réservé à l'administration */
-    '<div class="export-ligne"><span class="nom-export">Plan PAINT<small>' + (s.planPaint ? 'Déposé, repris dans la fiche' : 'Aucun : la fiche prend un plan provisoire') + '</small></span>' +
-      '<button type="button" class="btn-export" data-paint="ouvrir"' + (s.cad ? '' : ' disabled') + ' title="Ouvrir PAINT avec la parcelle chargée">' + IC_PAINT + 'PAINT</button>' +
-      '<button type="button" class="btn-export" data-paint="deposer" title="Déposer le plan exporté de PAINT (PNG)">' + IC_PDF + 'Déposer</button></div>' +
-    (s.planPaint ? '<div class="export-ligne"><span class="nom-export"><small>Plan PAINT déposé</small></span><button type="button" class="btn-export" data-paint="retirer">Retirer</button></div>' : '') +
-    '<div class="note-maquette">PAINT : exportez le plan en PNG, puis « Déposer ». Réservé à l’administration dans la version définitive.</div>' +
   '</div></div>';
 }
 
@@ -1856,9 +1855,9 @@ function nouvelleToile(haut) {
 }
 function finirPlan(t, titre, legende) { signerPlan(t.ctx, t.h); return { titre: titre, img: t.toile.toDataURL('image/jpeg', 0.86), legende: legende || '', ratio: t.h / PLAN_L }; }
 function planCadastre(s) {
-  /* v0.57 : la fiche reprend le PLAN DU SITE produit dans PAINT (extrait officiel de cadastre.gouv colorié),
-     déposé pour chaque site dans l'administration (s.planPaint) ; à défaut, reconstitution provisoire ci-dessous */
-  if (s.planPaint) return chargerImage(s.planPaint).then(function (im) {
+  /* 02/11 : la fiche reprend le PLAN DU SITE produit par l'étude dans PAINT et déposé pour chaque site dans ARGOSAdmin
+     (s.planPieceId, servi par le portail) ; à défaut, reconstitution provisoire ci-dessous */
+  if (s.planPieceId) return chargerImage('/api/argos?action=plan&site_id=' + encodeURIComponent(s.cle) + '&v=' + Date.now()).then(function (im) {
     if (!im) return planReconstitue(s);
     var k = Math.min(1, 1800 / im.width), w = Math.round(im.width * k), h = Math.round(im.height * k);
     var toile = document.createElement('canvas'); toile.width = w; toile.height = h;
@@ -1923,73 +1922,7 @@ function preparerPlans(s) {
     .then(function () { return plans; });
 }
 
-/* ===================== v0.62 : PONT ARGOS → PAINT =====================
-   Ouvre PAINT (paint-blue.vercel.app) avec la parcelle chargée, selon le contrat d'adresse du mémo PAINT v1.6 § 4
-   (le même que REDPAR) : commune, nomCommune, prefixe, section, parcelle, echelle, format, couleur, dim, surface,
-   pt et poly projetés en conique conforme CC42–CC50, crs, tab, auto=1. Le plan exporté en PNG est ensuite déposé
-   dans ARGOS ; il est gardé dans ce navigateur, en attendant le stockage privé de la version définitive. */
-var PAINT_URL = 'https://paint-blue.vercel.app/';
-var ECHELLES_PAINT = [1000, 1250, 1500, 2000, 2500, 4000, 5000];   /* plancher 1/1000 et plafond 1/5000, comme REDPAR */
-var EMPRISE_A4_PAYSAGE = { l: 0.2107, h: 0.197 };                 /* mètres de papier (mémo PAINT § 2) */
-function versCC(lat, lng) {
-  var zone = Math.min(50, Math.max(42, Math.round(lat)));
-  var a = 6378137, f = 1 / 298.257222101, e = Math.sqrt(2 * f - f * f), R = Math.PI / 180;
-  function m(p) { return Math.cos(p) / Math.sqrt(1 - e * e * Math.sin(p) * Math.sin(p)); }
-  function t(p) { return Math.tan(Math.PI / 4 - p / 2) / Math.pow((1 - e * Math.sin(p)) / (1 + e * Math.sin(p)), e / 2); }
-  var p0 = zone * R, p1 = (zone - 0.75) * R, p2 = (zone + 0.75) * R, l0 = 3 * R;
-  var n = (Math.log(m(p1)) - Math.log(m(p2))) / (Math.log(t(p1)) - Math.log(t(p2)));
-  var F = m(p1) / (n * Math.pow(t(p1), n)), r0 = a * F * Math.pow(t(p0), n), r = a * F * Math.pow(t(lat * R), n), th = n * (lng * R - l0);
-  return { zone: zone, x: 1700000 + r * Math.sin(th), y: (zone - 41) * 1000000 + 200000 + r0 - r * Math.cos(th) };
-}
-function adressePaint(s) {
-  var c = s.cad, anneau = anneauxLeaflet(formes.carte[s.id].getLatLngs())[0] || [];
-  var pts = anneau.map(function (p) { return versCC(p.lat, p.lng); });
-  if (pts.length > 40) { var pas = pts.length / 40, r = []; for (var i = 0; i < 40; i++) r.push(pts[Math.floor(i * pas)]); pts = r; }
-  var xs = pts.map(function (p) { return p.x; }), ys = pts.map(function (p) { return p.y; });
-  var lx = Math.max.apply(null, xs) - Math.min.apply(null, xs), ly = Math.max.apply(null, ys) - Math.min.apply(null, ys);
-  var ctr = formes.carte[s.id].getBounds().getCenter(), cc = versCC(ctr.lat, ctr.lng);
-  /* échelle : la plus grande qui montre la parcelle et ses voisines (parcelle sur 40 % du cadre au plus) */
-  var ech = ECHELLES_PAINT.filter(function (e) { return lx <= 0.4 * e * EMPRISE_A4_PAYSAGE.l && ly <= 0.4 * e * EMPRISE_A4_PAYSAGE.h; })[0];
-  var deborde = !ech; ech = ech || 5000;
-  var num = String(c.numero).replace(/^0+/, '');
-  var p = {
-    commune: c.insee, nomCommune: c.nomCommune, prefixe: c.prefixe, section: c.section, parcelle: num,
-    echelle: ech, format: 'A4|paysage', couleur: '#A01040', dim: Math.round(lx) + 'x' + Math.round(ly),
-    surface: c.contenance || '', pt: cc.x.toFixed(2) + ',' + cc.y.toFixed(2), crs: 'CC' + cc.zone,
-    poly: pts.map(function (q) { return q.x.toFixed(2) + ',' + q.y.toFixed(2); }).join(';'),
-    tab: c.section + ',' + num + ',' + (c.contenance || '')
-  };
-  if (!deborde) p.auto = 1;   /* comme REDPAR : pas de génération automatique si la parcelle déborde même à 1/5000 */
-  return PAINT_URL + '?' + Object.keys(p).map(function (k) { return k + '=' + encodeURIComponent(p[k]); }).join('&');
-}
-function clePlan(s) { return 'argos-plan-' + identifiantSite(s); }
-function actionPaint(s, quoi) {
-  if (!s) return;
-  if (quoi === 'ouvrir') {
-    if (!s.cad) { annoncer('La parcelle n’est pas encore lue au cadastre. Patientez un instant, puis réessayez.'); return; }
-    window.open(adressePaint(s), '_blank', 'noopener');
-    annoncer('PAINT s’ouvre avec la parcelle ' + s.cad.section + ' ' + String(s.cad.numero).replace(/^0+/, '') + '. Exportez le plan en PNG, puis « Déposer ».');
-  } else if (quoi === 'deposer') {
-    var champ = document.createElement('input'); champ.type = 'file'; champ.accept = 'image/png,image/jpeg';
-    champ.onchange = function () {
-      var f = champ.files && champ.files[0]; if (!f) return;
-      var lu = new FileReader();
-      lu.onload = function () {
-        s.planPaint = lu.result;
-        var garde = true; try { localStorage.setItem(clePlan(s), lu.result); } catch (err) { garde = false; }
-        afficherFiche(s);
-        annoncer(garde ? 'Plan PAINT déposé : la fiche le reprend désormais.' : 'Plan PAINT déposé pour cette séance (trop lourd pour être gardé dans le navigateur).');
-      };
-      lu.readAsDataURL(f);
-    };
-    champ.click();
-  } else if (quoi === 'retirer') {
-    delete s.planPaint; try { localStorage.removeItem(clePlan(s)); } catch (err) {}
-    afficherFiche(s); annoncer('Plan PAINT retiré : la fiche reprend le plan provisoire.');
-  }
-}
-/* au chargement, on reprend les plans PAINT déjà déposés dans ce navigateur */
-SITES.forEach(function (s) { try { var v = localStorage.getItem(clePlan(s)); if (v) s.planPaint = v; } catch (err) {} });
+/* 02/11 : le pont ARGOS → PAINT a quitté le site client ; le plan du site est déposé par l'étude dans ARGOSAdmin */
 
 /* Fichier téléchargé par le navigateur */
 function telecharger(blob, nom) {
@@ -2039,8 +1972,14 @@ function exporterFiche(s, avecBail, mode) {
   if (exportEnCours) { annoncer('Une fiche est déjà en préparation.'); return; }
   exportEnCours = true;
   document.querySelectorAll('[data-export]').forEach(function (b) { b.setAttribute('aria-busy', 'true'); });
-  annoncer('Préparation des plans du site…');
-  preparerPlans(s).then(function (plans) {
+  annoncer('Vérification des références cadastrales…');
+  /* 02/11 : avant toute fiche, le portail vérifie au cadastre que chaque parcelle du site existe encore ;
+     une parcelle disparue ou renumérotée bloque la fiche entière (pas de fiche partielle) */
+  controlerCadastre(s).then(function (c) {
+    if (c && c.bloque) { afficherBlocageFiche(c.message); var stop = new Error('fiche bloquée'); stop.silencieux = true; throw stop; }
+    annoncer('Préparation des plans du site…');
+    return preparerPlans(s);
+  }).then(function (plans) {
     var doc = construirePdf(s, avecBail, plans), nom = nomFiche(s, avecBail);
     if (mode === 'mail') {
       telecharger(brouillonFiche(s, avecBail, doc), nom + '.eml');
@@ -2050,6 +1989,7 @@ function exporterFiche(s, avecBail, mode) {
       annoncer('Fiche téléchargée : ' + nom + '.pdf');
     }
   }).catch(function (err) {
+    if (err && err.silencieux) return;
     annoncer('La fiche n’a pas pu être produite. Rechargez la page, puis réessayez.');
     if (window.console) console.error(err);
   }).then(function () {
@@ -2058,6 +1998,23 @@ function exporterFiche(s, avecBail, mode) {
   });
 }
 var exportEnCours = false;
+function controlerCadastre(s) {
+  return fetch('/api/argos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify({ action: 'controle_cadastre', site_id: s.cle }) })
+    .then(function (r) { return r.ok ? r.json() : { controle: 'indisponible', bloque: false }; })
+    .catch(function () { return { controle: 'indisponible', bloque: false }; });
+}
+function afficherBlocageFiche(message) {
+  var v = document.getElementById('blocageFiche');
+  if (!v) {
+    v = document.createElement('div'); v.id = 'blocageFiche'; v.setAttribute('role', 'alertdialog'); v.setAttribute('aria-modal', 'true');
+    v.innerHTML = '<div class="bf-carte"><h3>Fiche de synthèse indisponible</h3><p id="bfTexte"></p><button type="button" class="ac-btn" id="bfFermer">Fermer</button></div>';
+    document.body.appendChild(v);
+    v.addEventListener('click', function (e) { if (e.target === v || e.target.id === 'bfFermer') v.hidden = true; });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') v.hidden = true; });
+  }
+  document.getElementById('bfTexte').textContent = message;
+  v.hidden = false; document.getElementById('bfFermer').focus();
+}
 
 /* ---------- Vue d'accueil : aucun site choisi, carte cadrée au mieux sur l'ensemble du patrimoine (v0.29, remplace Notre-Dame) ---------- */
 function cadrerEnsemble(anime) {
