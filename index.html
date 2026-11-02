@@ -1859,12 +1859,51 @@ function planCadastre(s) {
      (s.planPieceId, servi par le portail) ; à défaut, reconstitution provisoire ci-dessous */
   if (s.planPieceId) return chargerImage('/api/argos?action=plan&site_id=' + encodeURIComponent(s.cle) + '&v=' + Date.now()).then(function (im) {
     if (!im) return planReconstitue(s);
-    var k = Math.min(1, 1800 / im.width), w = Math.round(im.width * k), h = Math.round(im.height * k);
+    /* 02/11 : DÉCOUPAGE AJUSTÉ — on ne reprend pas la page PAINT entière (cartouche DGFiP, plan au large) mais une fenêtre
+       centrée sur la parcelle coloriée, qui occupe environ un tiers de la largeur (même proportion que le cadrage « contexte »
+       de REDPAR), bornée au cadre de la carte. Sans parcelle coloriée repérable, le plan est repris en entier. */
+    var cadre = decouperPlan(im);
+    var w = Math.min(1800, cadre.w), h = Math.round(cadre.h * (w / cadre.w));
     var toile = document.createElement('canvas'); toile.width = w; toile.height = h;
-    var ctx = toile.getContext('2d'); ctx.fillStyle = '#FFFFFF'; ctx.fillRect(0, 0, w, h); ctx.drawImage(im, 0, 0, w, h);
+    var ctx = toile.getContext('2d'); ctx.fillStyle = '#FFFFFF'; ctx.fillRect(0, 0, w, h);
+    ctx.drawImage(im, cadre.x, cadre.y, cadre.w, cadre.h, 0, 0, w, h);
     return { titre: 'Plan cadastral', img: toile.toDataURL('image/jpeg', 0.9), legende: 'Extrait de cadastre.gouv.fr, colorié par l’étude', ratio: h / w };
   });
   return planReconstitue(s);
+}
+/* Repère, dans l'image PAINT, la CARTE (boîte des pixels colorés : jaune du bâti, teintes de coloriage) et la PARCELLE COLORIÉE
+   (pixels saturés hors jaune et orange du cadastre) ; renvoie la fenêtre à découper {x, y, w, h}, au format 1000 × 640 de la fiche. */
+function decouperPlan(im) {
+  var tout = { x: 0, y: 0, w: im.width, h: im.height };
+  try {
+    var ech = Math.min(1, 900 / Math.max(im.width, im.height));
+    var tw = Math.max(1, Math.round(im.width * ech)), th = Math.max(1, Math.round(im.height * ech));
+    var t = document.createElement('canvas'); t.width = tw; t.height = th;
+    var c = t.getContext('2d', { willReadFrequently: true }); c.drawImage(im, 0, 0, tw, th);
+    var d = c.getImageData(0, 0, tw, th).data;
+    var carte = null, parc = null;
+    function etendre(b, x, y) { if (!b) return { x0: x, y0: y, x1: x, y1: y }; if (x < b.x0) b.x0 = x; if (x > b.x1) b.x1 = x; if (y < b.y0) b.y0 = y; if (y > b.y1) b.y1 = y; return b; }
+    for (var y = 0; y < th; y++) for (var x = 0; x < tw; x++) {
+      var i = (y * tw + x) * 4, r = d[i], g = d[i + 1], b = d[i + 2];
+      var mx = Math.max(r, g, b), mn = Math.min(r, g, b), sat = mx ? (mx - mn) / mx : 0;
+      if (sat < 0.25 || mx < 60) continue;                       /* gris, blanc, noir : traits et texte */
+      var hue = 0; if (mx === r) hue = ((g - b) / (mx - mn)) % 6; else if (mx === g) hue = (b - r) / (mx - mn) + 2; else hue = (r - g) / (mx - mn) + 4;
+      hue = (hue * 60 + 360) % 360;
+      carte = etendre(carte, x, y);
+      if (hue >= 25 && hue <= 75) continue;                        /* jaune et orange du cadastre (bâti, hachures) */
+      parc = etendre(parc, x, y);
+    }
+    if (!carte || (carte.x1 - carte.x0) < tw * 0.2) return tout;
+    var k = 1 / ech;
+    var zone = { x: carte.x0 * k, y: carte.y0 * k, w: (carte.x1 - carte.x0 + 1) * k, h: (carte.y1 - carte.y0 + 1) * k };
+    if (!parc || (parc.x1 - parc.x0) < 2 || (parc.y1 - parc.y0) < 2) return zone;     /* pas de parcelle coloriée repérable : la carte entière */
+    var px = (parc.x0 + parc.x1) / 2 * k, py = (parc.y0 + parc.y1) / 2 * k, pw = (parc.x1 - parc.x0 + 1) * k, ph = (parc.y1 - parc.y0 + 1) * k;
+    var ratio = PLAN_H_CADASTRE / PLAN_L;
+    var fw = Math.max(pw * 3, ph * 3 / ratio, zone.w * 0.25), fh = fw * ratio;       /* la parcelle sur un tiers du cadre, jamais moins d'un quart de la carte */
+    if (fw > zone.w) { fw = zone.w; fh = fw * ratio; } if (fh > zone.h) { fh = zone.h; fw = fh / ratio; }
+    var fx = Math.min(Math.max(px - fw / 2, zone.x), zone.x + zone.w - fw), fy = Math.min(Math.max(py - fh / 2, zone.y), zone.y + zone.h - fh);
+    return { x: Math.round(fx), y: Math.round(fy), w: Math.round(fw), h: Math.round(fh) };
+  } catch (e) { if (window.console) console.warn('découpage du plan', e); return tout; }
 }
 function planReconstitue(s) {
   /* v0.55 : EXTRAIT CADASTRAL — cadré sur la parcelle et ses voisines immédiates, trait noir sur fond blanc,
