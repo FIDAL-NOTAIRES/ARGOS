@@ -842,13 +842,14 @@ var NOTAIRE = {
 };
 
 /* Avocats FIDAL par région : chargés par l’administrateur (fictifs ici) */
-function avocatDe(r) { return avocatDe(r) || { nom: 'Avocat FIDAL', bureau: 'Bureau FIDAL le plus proche' }; }
 var AVOCATS = {
   'Hauts-de-France': { nom: 'Avocat FIDAL (exemple)', bureau: 'Bureau de Lille' },
   'Normandie': { nom: 'Avocat FIDAL (exemple)', bureau: 'Bureau de Rouen' },
   'Île-de-France': { nom: 'Avocat FIDAL (exemple)', bureau: 'Bureau de Paris La Défense' },
   'Bretagne': { nom: 'Avocat FIDAL (exemple)', bureau: 'Bureau de Rennes' }
 };
+/* correctif 02/11 : la fonction s'appelait elle-même (fiche vide) ; elle lit maintenant la table AVOCATS */
+function avocatDe(r) { return AVOCATS[r] || { nom: 'Avocat FIDAL', bureau: 'Bureau FIDAL le plus proche' }; }
 
 /* Assistance sur un site : dans cet ordre (urbanisme écarté). Avocats chargés par l'administrateur (fictifs ici) */
 var DOMAINES = [
