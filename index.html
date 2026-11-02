@@ -1631,31 +1631,43 @@ function construirePdf(s, avecBail, plans) {
   /* --- v0.57 : TOUT L'EN-TÊTE AU-DESSUS DU FILET.
      À gauche, le nom du site et son adresse disposés comme sur une enveloppe (nom, voie, code postal et COMMUNE en capitales) ;
      à droite, le reste : nature du document, version, identifiant, référence et date --- */
-  /* 02/11 : TITRE DU DOCUMENT au-dessus du bloc d'adresse, avec la version entre parenthèses */
-  police(17, true); couleur(PDF_C.nuit); doc.text('Fiche de synthèse', M, 13);
-  police(9, false); couleur(PDF_C.fonce);
-  doc.text(pdfTexte(avecBail ? '(version avec les éléments relatifs à l’occupation)' : '(version sans les éléments relatifs à l’occupation)'), M, 18.4);
-  couleur(PDF_C.trait, 'trait'); doc.setLineWidth(0.2); doc.line(M, 21.4, L_ - M, 21.4);
-  var env = lignesEnveloppe(s), yg = 28;
-  police(12.5, true); couleur(PDF_C.nuit); doc.text(doc.splitTextToSize(pdfTexte(env[0]), larg - 70)[0], M, yg);
-  police(9.5); couleur(PDF_C.texte);
-  env.slice(1).forEach(function (l) { yg += 4.6; doc.text(doc.splitTextToSize(pdfTexte(l), larg - 70)[0], M, yg); });
-  /* 02/11 : les trois références du document (site, référence, date d'établissement) en TABLEAU DE TROIS CASES côte à côte,
-     à droite du bloc d'adresse ; chaque valeur est réduite au besoin pour tenir dans sa case */
-  var tabL = Math.min(96, larg - 78), caseL = tabL / 3, tabX = L_ - M - tabL, tabY = yg - 4.2, tabH = 11.5;
-  doc.setFillColor(236, 245, 246); doc.rect(tabX, tabY, tabL, tabH, 'F');
-  couleur(PDF_C.trait, 'trait'); doc.setLineWidth(0.25); doc.rect(tabX, tabY, tabL, tabH, 'S');
-  doc.line(tabX + caseL, tabY, tabX + caseL, tabY + tabH); doc.line(tabX + 2 * caseL, tabY, tabX + 2 * caseL, tabY + tabH);
-  [['SITE', ident], ['RÉFÉRENCE', codeSite(s)], ['ÉTABLIE LE', dateLongue(maintenant)]].forEach(function (c, k) {
-    var cx = tabX + k * caseL + 2.4, txt = pdfTexte(c[1]), taille = 8.6;
-    police(6.3, true); couleur(PDF_C.doux); doc.text(pdfTexte(c[0]), cx, tabY + 4);
-    police(taille, true); couleur(PDF_C.nuit);
-    while (taille > 6.4 && doc.getTextWidth(txt) > caseL - 4.4) { taille -= 0.3; doc.setFontSize(taille); }
-    doc.text(doc.splitTextToSize(txt, caseL - 4.4)[0], cx, tabY + 8.9);
+  /* 02/11 : EN-TÊTE EN TROIS CASES SÉPARÉES côte à côte sur toute la largeur :
+     1) titre « Fiche de synthèse » et version  2) nature et adresse du site  3) site, référence, date d'établissement */
+  var topY = 11, gapE = 3, utile = larg - 2 * gapE, w1 = utile * 0.38, w2 = utile * 0.29, w3 = utile - w1 - w2;
+  var x1 = M, x2 = M + w1 + gapE, x3 = M + w1 + w2 + 2 * gapE;
+  police(8.4, false);
+  var sousT = doc.splitTextToSize(pdfTexte(avecBail ? '(version avec les éléments relatifs à l’occupation)' : '(version sans les éléments relatifs à l’occupation)'), w1 - 9);
+  var h1 = 9.2 + 4.6 + (sousT.length - 1) * 3.7 + 4.2;
+  var env = lignesEnveloppe(s);
+  police(12.5, true); var l0 = doc.splitTextToSize(pdfTexte(env[0]), w2 - 8).slice(0, 2);
+  police(9.5, false); var lr = [];
+  env.slice(1).forEach(function (l) { doc.splitTextToSize(pdfTexte(l), w2 - 8).forEach(function (x) { lr.push(x); }); });
+  lr = lr.slice(0, 4);
+  var h2 = 8.6 + (l0.length - 1) * 5 + lr.length * 4.6 + 3.8;
+  var h3 = 18.6 + 3.6;
+  var HE = Math.max(h1, h2, h3, 22);
+  /* case 1 : titre sur fond foncé */
+  couleur(PDF_C.nuit, 'fond'); doc.rect(x1, topY, w1, HE, 'F');
+  police(14.5, true); doc.setTextColor(255, 255, 255); doc.text('Fiche de synthèse', x1 + 4.5, topY + 9.2);
+  police(8.4, false); doc.setTextColor(216, 235, 236); doc.text(sousT, x1 + 4.5, topY + 13.8);
+  /* cases 2 et 3 : fond clair, liseré canard à gauche */
+  [[x2, w2], [x3, w3]].forEach(function (c) {
+    doc.setFillColor(236, 245, 246); doc.rect(c[0], topY, c[1], HE, 'F');
+    couleur(PDF_C.canard, 'fond'); doc.rect(c[0], topY, 1.6, HE, 'F');
   });
-  var yFilet = Math.max(yg, tabY + tabH) + 3.2;
-  couleur(PDF_C.canard, 'trait'); doc.setLineWidth(0.6); doc.line(M, yFilet, L_ - M, yFilet);
-  y = yFilet + 3;  /* v0.58 : le premier titre ne chevauche plus le filet */
+  police(12.5, true); couleur(PDF_C.nuit);
+  l0.forEach(function (l, k) { doc.text(l, x2 + 5, topY + 8.6 + k * 5); });
+  police(9.5, false); couleur(PDF_C.texte);
+  lr.forEach(function (l, k) { doc.text(l, x2 + 5, topY + 8.6 + (l0.length - 1) * 5 + 5.2 + k * 4.6); });
+  [['SITE', ident], ['RÉFÉRENCE', codeSite(s)], ['ÉTABLIE LE', dateLongue(maintenant)]].forEach(function (c, k) {
+    var by = topY + 7.4 + k * 5.6, txt = pdfTexte(c[1]), taille = 8.8;
+    police(6.3, true); couleur(PDF_C.doux); doc.text(pdfTexte(c[0]), x3 + 5, by);
+    var libL = doc.getTextWidth(pdfTexte(c[0])), dispo = w3 - 5 - libL - 8;
+    police(taille, true);
+    while (taille > 6.4 && doc.getTextWidth(txt) > dispo) { taille -= 0.3; doc.setFontSize(taille); }
+    couleur(PDF_C.nuit); doc.text(doc.splitTextToSize(txt, dispo)[0], x3 + w3 - 3.2, by, { align: 'right' });
+  });
+  y = topY + HE + 5;
 
   /* --- v0.61 : disposition équilibrée en bandes ---
      1) caractéristiques à gauche, extrait cadastral à droite (deux blocs de même hauteur)
