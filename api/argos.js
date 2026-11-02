@@ -24,12 +24,13 @@
      POST /api/argos { action: "appairage", jeton, code }           → enregistre le téléphone qui a scanné
      POST /api/argos { action: "deconnexion" }
      GET  /api/argos?action=sites                → sites et pièces autorisés (session requise)
-     GET  /api/argos?action=piece&id=123         → 302 vers la pièce (session requise, droits vérifiés, plafonds)
+     GET  /api/argos?action=piece&id=123         → la pièce elle-même, servie en flux par le portail (session requise, droits vérifiés, plafonds)
      GET  /api/argos?action=equipe               → journal de l'équipe (responsable seulement)
      POST /api/argos { action: "couper", utilisateur_id }           → le responsable coupe un accès (fusible)
 */
 const { neon } = require("@neondatabase/serverless");
 const crypto = require("crypto");
+const { Readable } = require("stream");
 
 const RUBRIQUES = { 1: "Désignation et plans", 2: "Titre", 3: "Exploitation", 4: "Fiscalité", 5: "Diagnostics", 6: "Organisation de l'immeuble / de la zone" };
 const DUREE_SESSION_MS = 10 * 60 * 60 * 1000;      // 10 heures
@@ -80,6 +81,7 @@ function estTelephone(ua) { return /iPhone|iPad|Android|Mobile/i.test(String(ua 
 function origine(req) { return `https://${req.headers["x-forwarded-host"] || req.headers.host}`; }
 
 // ---------- signature Scaleway (lecture seule) ----------
+function nomPropre(n) { return texte(n, 150).replace(/[\\/:*?"<>|\x00-\x1F]/g, "_").replace(/\s+/g, " ").trim() || "piece.pdf"; }
 function hex(b) { return Buffer.from(b).toString("hex"); }
 function hmac(cle, msg) { return crypto.createHmac("sha256", cle).update(msg, "utf8").digest(); }
 function encoderCle(cle) {
@@ -370,9 +372,22 @@ const actions = {
       return res.end("Vous avez atteint le nombre de consultations autorisé pour le moment. Réessayez un peu plus tard.");
     }
     await sql`INSERT INTO argos_telechargement (utilisateur_id, piece_id) VALUES (${u.id}, ${id})`;
-    res.statusCode = 302;
-    res.setHeader("Location", adresseLecture(r[0].bucket_principal, r[0].cle_objet, 300));
-    return res.end();
+    // 02/11 : le portail SERT la pièce lui-même (flux continu) au lieu de renvoyer vers le stockage ;
+    // le client ne voit jamais l'adresse ni le nom du prestataire de stockage, et le nom de fichier est maîtrisé ici.
+    const amont = await fetch(adresseLecture(r[0].bucket_principal, r[0].cle_objet, 60), { headers: req.headers.range ? { Range: req.headers.range } : {} });
+    if (!amont.ok && amont.status !== 206) {
+      console.error("[argos] lecture stockage", amont.status, await amont.text().catch(() => ""));
+      res.statusCode = 502; res.setHeader("Content-Type", "text/plain; charset=utf-8");
+      return res.end("La pièce est momentanément indisponible. Réessayez dans quelques minutes.");
+    }
+    const nom = nomPropre(r[0].nom_fichier);
+    res.statusCode = amont.status;
+    res.setHeader("Content-Type", amont.headers.get("content-type") || "application/octet-stream");
+    for (const h of ["content-length", "content-range", "accept-ranges", "etag", "last-modified"]) { const v = amont.headers.get(h); if (v) res.setHeader(h, v); }
+    res.setHeader("Content-Disposition", `inline; filename="${nom.replace(/[^\x20-\x7E]/g, "_").replace(/"/g, "")}"; filename*=UTF-8''${encodeURIComponent(nom)}`);
+    res.setHeader("Cache-Control", "private, no-store");
+    if (!amont.body) return res.end();
+    await new Promise((ok, ko) => { const flux = Readable.fromWeb(amont.body); flux.on("error", ko); res.on("close", ok); res.on("error", ko); flux.pipe(res).on("finish", ok); });
   },
 
   async equipe(sql, p, req, res, client) {
