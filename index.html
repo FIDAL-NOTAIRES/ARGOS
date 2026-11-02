@@ -1694,7 +1694,12 @@ function construirePdf(s, avecBail, plans) {
     { lib: 'Surface cadastrale', val: s.surface || 'Non lue' }, { lib: 'Zonage d’urbanisme', val: s.zonage || 'Non lu' },
     { lib: 'Région', val: s.region }], xG, cL, titreCol('Caractéristiques du site', xG, cL, y0));
   var yD = titreCol('Extrait du plan cadastral', xD, cL, y0);
-  if (plans) yD = plan(plans.cadastre, xD, cL, (plans.cadastre && plans.cadastre.ratio) || PLAN_H_CADASTRE / PLAN_L, yD);
+  /* 02/11 : l'extrait cadastral prend exactement la HAUTEUR de la colonne de gauche (titre et légende compris) ;
+     l'image est recadrée au centre pour atteindre cette proportion, la parcelle coloriée restant au milieu */
+  var hPlan = (yG - yD) - 10.3;                                    /* 3,8 titre + 3,5 légende + 3 marge */
+  var pc = plans ? plans.cadastre : null;
+  if (pc && pc.toile && hPlan > 25) pc = recadrerPlan(pc, hPlan / cL);
+  if (plans) yD = plan(pc, xD, cL, (pc && pc.ratio) || PLAN_H_CADASTRE / PLAN_L, yD);
   y = Math.max(yG, yD);
 
   /* --- 2. Bail commercial (version avec bail) --- */
@@ -1853,7 +1858,18 @@ function nouvelleToile(haut) {
   var ctx = toile.getContext('2d'); ctx.fillStyle = '#FFFFFF'; ctx.fillRect(0, 0, PLAN_L, haut);
   return { toile: toile, ctx: ctx, h: haut };
 }
-function finirPlan(t, titre, legende) { signerPlan(t.ctx, t.h); return { titre: titre, img: t.toile.toDataURL('image/jpeg', 0.86), legende: legende || '', ratio: t.h / PLAN_L }; }
+function finirPlan(t, titre, legende) { signerPlan(t.ctx, t.h); return { titre: titre, img: t.toile.toDataURL('image/jpeg', 0.86), legende: legende || '', ratio: t.h / PLAN_L, toile: t.toile }; }
+/* Recadre un plan (toile) au centre pour obtenir la proportion hauteur/largeur demandée, sans déformation */
+function recadrerPlan(p, ratio) {
+  try {
+    var src = p.toile, w = src.width, h = src.height, cw = w, ch = Math.round(w * ratio);
+    if (ch > h) { ch = h; cw = Math.round(h / ratio); }
+    var x = Math.round((w - cw) / 2), y = Math.round((h - ch) / 2);
+    var t = document.createElement('canvas'); t.width = cw; t.height = ch;
+    var ctx = t.getContext('2d'); ctx.fillStyle = '#FFFFFF'; ctx.fillRect(0, 0, cw, ch); ctx.drawImage(src, x, y, cw, ch, 0, 0, cw, ch);
+    return { titre: p.titre, legende: p.legende, img: t.toDataURL('image/jpeg', 0.9), ratio: ch / cw, toile: t };
+  } catch (e) { return p; }
+}
 function planCadastre(s) {
   /* 02/11 : la fiche reprend le PLAN DU SITE produit par l'étude dans PAINT et déposé pour chaque site dans ARGOSAdmin
      (s.planPieceId, servi par le portail) ; à défaut, reconstitution provisoire ci-dessous */
@@ -1867,7 +1883,7 @@ function planCadastre(s) {
     var toile = document.createElement('canvas'); toile.width = w; toile.height = h;
     var ctx = toile.getContext('2d'); ctx.fillStyle = '#FFFFFF'; ctx.fillRect(0, 0, w, h);
     ctx.drawImage(im, cadre.x, cadre.y, cadre.w, cadre.h, 0, 0, w, h);
-    return { titre: 'Plan cadastral', img: toile.toDataURL('image/jpeg', 0.9), legende: 'Extrait de cadastre.gouv.fr, colorié par l’étude', ratio: h / w };
+    return { titre: 'Plan cadastral', img: toile.toDataURL('image/jpeg', 0.9), legende: 'Extrait de cadastre.gouv.fr, colorié par l’étude', ratio: h / w, toile: toile };
   });
   return planReconstitue(s);
 }
