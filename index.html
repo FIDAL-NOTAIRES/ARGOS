@@ -1855,7 +1855,7 @@ function planCadastre(s) {
     var k = Math.min(1, 1800 / im.width), w = Math.round(im.width * k), h = Math.round(im.height * k);
     var toile = document.createElement('canvas'); toile.width = w; toile.height = h;
     var ctx = toile.getContext('2d'); ctx.fillStyle = '#FFFFFF'; ctx.fillRect(0, 0, w, h); ctx.drawImage(im, 0, 0, w, h);
-    return { titre: 'Plan cadastral', img: toile.toDataURL('image/jpeg', 0.9), legende: 'Extrait de cadastre.gouv.fr, colorié dans PAINT', ratio: h / w };
+    return { titre: 'Plan cadastral', img: toile.toDataURL('image/jpeg', 0.9), legende: 'Extrait de cadastre.gouv.fr, colorié par l’étude', ratio: h / w };
   });
   return planReconstitue(s);
 }
@@ -1868,7 +1868,7 @@ function planReconstitue(s) {
     if (!ok) return { titre: titre, img: null, absent: 'Le plan cadastral n’a pas répondu.' };
     tracerParcelle(t.ctx, cad, s, { trait: '#A01040', epaisseur: 4, fond: 'rgba(160,16,64,.16)' });
     echelleEtNord(t.ctx, cad, PLAN_H_CADASTRE, formes.carte[s.id].getBounds().getCenter().lat);
-    return finirPlan(t, titre + ' (provisoire)', 'en attendant le plan PAINT du site' + (s.parcelles ? ' · parcelle' + (s.parcelles.length > 1 ? 's ' : ' ') + s.parcelles.join(', ') : ''));
+    return finirPlan(t, titre + ' (provisoire)', 'en attendant le plan détaillé du site' + (s.parcelles ? ' · parcelle' + (s.parcelles.length > 1 ? 's ' : ' ') + s.parcelles.join(', ') : ''));
   });
 }
 function planAerien(s) {
