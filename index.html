@@ -1541,7 +1541,9 @@ function enMajusculesSansAccent(t) {
 }
 function identifiantSite(s) {
   var rang = SITES.filter(function (x) { return x.commune === s.commune && x.id <= s.id; }).length;
-  return enMajusculesSansAccent(s.commune) + '-' + ('0' + rang).slice(-2);
+  /* 02/11 : sans commune renseignée, l'identifiant prend le nom du site (évitait un nom de fichier commençant par « - ») */
+  var base = enMajusculesSansAccent(s.commune && s.commune !== '—' ? s.commune : (s.nom || 'SITE')) || 'SITE';
+  return base + '-' + ('0' + rang).slice(-2);
 }
 function dateFichier(d) { return d.getFullYear() + ('0' + (d.getMonth() + 1)).slice(-2) + ('0' + d.getDate()).slice(-2); }
 function nomFiche(s, avecBail) { return identifiantSite(s) + '_000_' + (avecBail ? 'FICHE-AVEC-BAIL' : 'FICHE') + '_' + dateFichier(new Date()); }
@@ -1727,7 +1729,8 @@ function construirePdf(s, avecBail, plans) {
   try {
     var urlSite = location.origin + '/#site/' + (s.cle || s.id);
     var qr = qrcode(0, 'M'); qr.addData(urlSite); qr.make();
-    var tailleQr = 22, xQr = L_ - M - tailleQr, yQr = H_ - 14 - tailleQr - 2;
+    /* 02/11 : le code QR et sa légende restent AU-DESSUS du trait de pied de page (la légende chevauchait le trait et la mention) */
+    var tailleQr = 22, xQr = L_ - M - tailleQr, yQr = H_ - 14 - tailleQr - 7;
     doc.addImage(qr.createDataURL(4, 0), 'GIF', xQr, yQr, tailleQr, tailleQr);
     doc.link(xQr, yQr, tailleQr, tailleQr, { url: urlSite });
     police(6.5); couleur(PDF_C.doux); doc.text(pdfTexte('Consulter les pièces'), xQr + tailleQr / 2, yQr + tailleQr + 3, { align: 'center' });
