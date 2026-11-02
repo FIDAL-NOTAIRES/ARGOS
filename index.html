@@ -809,7 +809,7 @@ body.charge-cartes .carte-zone,body.charge-cartes .incrustations{opacity:0}
           return { cle: s.id, nom: s.nom || '', commune: s.commune || '—', cp: s.code_postal || '', region: regionDe(s.code_postal), rue: s.adresse || (s.nom || ''),
             lat: s.lat || 46.6, lng: s.lng || 2.4, nature: ref.nature || fiche.nature || (s.nom || 'Bien immobilier'), groupe: fiche.designation ? fiche.designation.slice(0, 60) : '',
             surface: ref.surface || '', cadastreTexte: ref.cadastre || '', titre: ref.titre || '', designation: fiche.designation || '', pieces: s.pieces || [], maj_le: s.maj_le,
-            planPieceId: s.plan_piece_id || null, organisationVisible: !!s.organisation_visible };
+            planPieceId: s.plan_piece_id || null, organisationVisible: !!s.organisation_visible, entree: ref.entree || '' };
         });
         document.getElementById('nomClient').textContent = d.client;
         document.title = 'ARGOS · ' + d.client;
@@ -1733,7 +1733,7 @@ function construirePdf(s, avecBail, plans) {
   var y0 = y;
   var yG = colonne([{ lib: 'Nature', val: s.nature }, { lib: 'Parcelles', val: s.parcelles ? s.parcelles.join(', ') : 'Lecture en cours' },
     { lib: 'Surface cadastrale', val: s.surface || 'Non lue' }, { lib: 'Zonage d’urbanisme', val: s.zonage || 'Non lu' },
-    { lib: 'Région', val: s.region }], xG, cL, titreCol('Caractéristiques du site', xG, cL, y0));
+    { lib: 'Date d’entrée dans le patrimoine', val: s.entree && /^\d{4}-\d{2}-\d{2}$/.test(s.entree) ? dateLongue(new Date(s.entree + 'T12:00:00')) : 'Non renseignée' }], xG, cL, titreCol('Caractéristiques du site', xG, cL, y0));
   var yD = titreCol('Extrait du plan cadastral', xD, cL, y0);
   /* 02/11 : l'extrait cadastral prend exactement la HAUTEUR de la colonne de gauche (titre et légende compris) ;
      l'image est recadrée au centre pour atteindre cette proportion, la parcelle coloriée restant au milieu */
