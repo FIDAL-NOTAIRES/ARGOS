@@ -1629,18 +1629,22 @@ function construirePdf(s, avecBail, plans) {
   /* --- v0.57 : TOUT L'EN-TÊTE AU-DESSUS DU FILET.
      À gauche, le nom du site et son adresse disposés comme sur une enveloppe (nom, voie, code postal et COMMUNE en capitales) ;
      à droite, le reste : nature du document, version, identifiant, référence et date --- */
-  var env = lignesEnveloppe(s), yg = 13;
+  /* 02/11 : TITRE DU DOCUMENT au-dessus du bloc d'adresse, avec la version entre parenthèses */
+  police(17, true); couleur(PDF_C.nuit); doc.text('Fiche de synthèse', M, 13);
+  police(9, false); couleur(PDF_C.fonce);
+  doc.text(pdfTexte(avecBail ? '(version avec les éléments relatifs à l’occupation)' : '(version sans les éléments relatifs à l’occupation)'), M, 18.4);
+  couleur(PDF_C.trait, 'trait'); doc.setLineWidth(0.2); doc.line(M, 21.4, L_ - M, 21.4);
+  var env = lignesEnveloppe(s), yg = 28;
   police(12.5, true); couleur(PDF_C.nuit); doc.text(doc.splitTextToSize(pdfTexte(env[0]), larg - 70)[0], M, yg);
   police(9.5); couleur(PDF_C.texte);
   env.slice(1).forEach(function (l) { yg += 4.6; doc.text(doc.splitTextToSize(pdfTexte(l), larg - 70)[0], M, yg); });
   var droite = [
-    [avecBail ? 'Version avec le bail commercial' : 'Version sans les éléments du bail', 8.5, true, PDF_C.fonce],
     ['Site ' + ident, 8, false, PDF_C.doux],
     ['Référence ' + codeSite(s), 8, false, PDF_C.doux],
     ['Établie le ' + dateLongue(maintenant), 8, false, PDF_C.doux]
-  ], yd = 13;
-  droite.forEach(function (d, k) { police(d[1], d[2]); couleur(d[3]); doc.text(pdfTexte(d[0]), L_ - M, yd, { align: 'right' }); yd += k === 0 ? 4.6 : 4; });
-  var yFilet = Math.max(yg, yd - 4) + 3.2;
+  ], yd = 28;
+  droite.forEach(function (d) { police(d[1], d[2]); couleur(d[3]); doc.text(pdfTexte(d[0]), L_ - M, yd, { align: 'right' }); yd += 4.2; });
+  var yFilet = Math.max(yg, yd - 4.2) + 3.2;
   couleur(PDF_C.canard, 'trait'); doc.setLineWidth(0.6); doc.line(M, yFilet, L_ - M, yFilet);
   y = yFilet + 3;  /* v0.58 : le premier titre ne chevauche plus le filet */
 
@@ -1683,9 +1687,24 @@ function construirePdf(s, avecBail, plans) {
     }
     couleur(PDF_C.trait, 'trait'); doc.setLineWidth(0.2); doc.rect(x, yy, w, h);
     police(8, true); couleur(PDF_C.nuit); doc.text(doc.splitTextToSize(pdfTexte(p ? p.titre : ''), w)[0], x, yy + h + 3.8);
-    var yl = yy + h + 3.8;
-    if (p && p.legende) { police(7.2); couleur(PDF_C.doux); doc.text(doc.splitTextToSize(pdfTexte(p.legende), w)[0], x, yl + 3.5); yl += 3.5; }
+    var yl = yy + h + 3.8;      /* 02/11 : plus de sous-titre (légende) sous le titre de chaque plan */
     return yl + 3;
+  }
+
+  /* pied de page (répété si la fiche déborde sur une seconde page) et saut de page de secours :
+     la version sans bail tient sur une page ; la version avec bail peut déborder, la liste des pièces passe alors page suivante */
+  function pied() {
+    couleur(PDF_C.trait, 'trait'); doc.setLineWidth(0.3); doc.line(M, H_ - 14, L_ - M, H_ - 14);
+    police(7); couleur(PDF_C.doux);
+    doc.text(doc.splitTextToSize(pdfTexte('Fiche établie par ARGOS, FIDAL Notaires, à partir de la documentation dont dispose l’étude à cette date. Elle ne garantit pas qu’aucune pièce ne manque et ne constitue pas un audit.'), larg), M, H_ - 10.5);
+    couleur(PDF_C.doux); doc.text(pdfTexte(nom + '.pdf'), M, H_ - 4.5);
+  }
+  function assurerPlace(besoin) {
+    if (y + besoin <= 250) return;
+    pied(); doc.addPage();
+    police(8, true); couleur(PDF_C.doux); doc.text(pdfTexte('Fiche de synthèse (suite) · site ' + ident), M, 12);
+    couleur(PDF_C.canard, 'trait'); doc.setLineWidth(0.4); doc.line(M, 14, L_ - M, 14);
+    y = 17;
   }
 
   /* --- 1. Caractéristiques | extrait cadastral --- */
@@ -1696,7 +1715,7 @@ function construirePdf(s, avecBail, plans) {
   var yD = titreCol('Extrait du plan cadastral', xD, cL, y0);
   /* 02/11 : l'extrait cadastral prend exactement la HAUTEUR de la colonne de gauche (titre et légende compris) ;
      l'image est recadrée au centre pour atteindre cette proportion, la parcelle coloriée restant au milieu */
-  var hPlan = (yG - yD) - 10.3;                                    /* 3,8 titre + 3,5 légende + 3 marge */
+  var hPlan = (yG - yD) - 6.8;                                     /* 3,8 titre + 3 marge */
   var pc = plans ? plans.cadastre : null;
   if (pc && pc.toile && hPlan > 25) pc = recadrerPlan(pc, hPlan / cL);
   if (plans) yD = plan(pc, xD, cL, (pc && pc.ratio) || PLAN_H_CADASTRE / PLAN_L, yD);
@@ -1705,6 +1724,7 @@ function construirePdf(s, avecBail, plans) {
   /* --- 2. Bail commercial (version avec bail) --- */
   if (avecBail) {
     var b = bail(s), el = [];
+    assurerPlace(60);
     y = titreCol('Bail commercial', xG, larg, y + 1);
     if (!b) el.push({ lib: 'Bail', val: 'Aucun bail commercial enregistré pour ce site' });
     else {
@@ -1727,16 +1747,46 @@ function construirePdf(s, avecBail, plans) {
 
   /* --- 3. Vue aérienne | situation dans la commune --- */
   if (plans) {
+    assurerPlace(62);
     y = titreCol('Situation du site', xG, larg, y + 1);
     y = Math.max(plan(plans.aerien, xG, cL, PLAN_H / PLAN_L, y), plan(plans.commune, xD, cL, PLAN_H / PLAN_L, y));
   }
 
-  /* --- 4. Liste des pièces --- */
+  /* --- 4. Liste des pièces : UNE CARTE PAR CATÉGORIE (02/11) --- bandeau de couleur à gauche, intitulé en gras avec le nombre de documents,
+     un document par ligne ; « Aucun document à ce stade » en gris quand la catégorie est vide */
+  var themesPdf = themesDuSite(s).filter(function (t) { return avecBail || t.titre !== 'Exploitation'; });
+  function mesureCarte(t) {
+    var liste = piecesRubrique(s, t.rub), n = 0;
+    police(8.6);
+    liste.forEach(function (p) { n += doc.splitTextToSize(pdfTexte(p.nom), cL - 12).length; });
+    if (!liste.length) n = 1;
+    return { liste: liste, h: 11.8 + (n - 1) * 3.7 };
+  }
+  function dessinerCarte(t, m, x, yy, hh) {
+    couleur(PDF_C.lagon, 'fond'); doc.rect(x, yy, cL, hh, 'F');
+    couleur(PDF_C.canard, 'fond'); doc.rect(x, yy, 1.6, hh, 'F');
+    police(9.5, true); couleur(PDF_C.fonce); doc.text(pdfTexte(t.titre), x + 5, yy + 5);
+    police(7.4); couleur(PDF_C.doux);
+    if (m.liste.length) doc.text(m.liste.length + (m.liste.length > 1 ? ' documents' : ' document'), x + cL - 3, yy + 5, { align: 'right' });
+    var yl = yy + 9.4;
+    if (!m.liste.length) { doc.setFont('helvetica', 'italic'); doc.setFontSize(8.4); couleur(PDF_C.doux); doc.text('Aucun document à ce stade', x + 5, yl); doc.setFont('helvetica', 'normal'); return; }
+    police(8.6); couleur(PDF_C.texte);
+    m.liste.forEach(function (p) {
+      var lg = doc.splitTextToSize(pdfTexte(p.nom), cL - 12);
+      couleur(PDF_C.canard, 'fond'); doc.circle(x + 5.6, yl - 0.9, 0.5, 'F'); couleur(PDF_C.texte);
+      doc.text(lg, x + 8, yl); yl += lg.length * 3.7;
+    });
+  }
+  var mesures = themesPdf.map(mesureCarte), besoinListe = 9.5 + 1;
+  for (var r0 = 0; r0 < mesures.length; r0 += 2) besoinListe += Math.max(mesures[r0].h, mesures[r0 + 1] ? mesures[r0 + 1].h : 0) + 2.6;
+  assurerPlace(besoinListe);
   y = titreCol('Liste des pièces disponibles', xG, larg, y + 1);
-  y = deuxColonnes(themesDuSite(s).filter(function (t) { return avecBail || t.titre !== 'Exploitation'; }).map(function (t) {
-    var liste = piecesRubrique(s, t.rub);
-    return { lib: t.titre, val: liste.length ? liste.map(function (p) { return p.nom; }).join(', ') : 'Aucun document à ce stade' };
-  }), y);
+  for (var r1 = 0; r1 < themesPdf.length; r1 += 2) {
+    var hr = Math.max(mesures[r1].h, mesures[r1 + 1] ? mesures[r1 + 1].h : 0);
+    dessinerCarte(themesPdf[r1], mesures[r1], xG, y, hr);
+    if (themesPdf[r1 + 1]) dessinerCarte(themesPdf[r1 + 1], mesures[r1 + 1], xD, y, hr);
+    y += hr + 2.6;
+  }
   /* lot 3 : code QR vers la fiche du site sur le portail (flashable au téléphone, cliquable à l'écran) — jamais d'adresse en clair */
   try {
     var urlSite = location.origin + '/#site/' + (s.cle || s.id);
@@ -1750,10 +1800,7 @@ function construirePdf(s, avecBail, plans) {
   } catch (err) { /* sans code QR si la bibliothèque manque */ }
 
   /* --- Pied de page --- */
-  couleur(PDF_C.trait, 'trait'); doc.setLineWidth(0.3); doc.line(M, H_ - 14, L_ - M, H_ - 14);
-  police(7); couleur(PDF_C.doux);
-  doc.text(doc.splitTextToSize(pdfTexte('Fiche établie par ARGOS, FIDAL Notaires, à partir de la documentation dont dispose l’étude à cette date. Elle ne garantit pas qu’aucune pièce ne manque et ne constitue pas un audit.'), larg), M, H_ - 10.5);
-  couleur(PDF_C.doux); doc.text(pdfTexte(nom + '.pdf'), M, H_ - 4.5);
+  pied();
   doc.__hauteurUtilisee = y;
   doc.setProperties({ title: nom, subject: 'Fiche du site ' + ident, author: 'FIDAL Notaires', creator: 'ARGOS' });
   return doc;
