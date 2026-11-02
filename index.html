@@ -710,22 +710,30 @@ body.charge-cartes .carte-zone,body.charge-cartes .incrustations{opacity:0}
         if (m.coupe_par_responsable) return '<span class="ac-etat coupe">Accès coupé</span>';
         if (m.suspendu_le) return '<span class="ac-etat coupe">Suspendu par l’étude</span>';
         if (m.bloque_jusqua && new Date(m.bloque_jusqua) > new Date()) return '<span class="ac-etat coupe">Suspendu 48 h</span>';
+        if (m.pause_volume) return '<span class="ac-etat coupe">En pause (volume inhabituel)</span>';
         if (!m.active_le) return '<span class="ac-etat">En attente d’activation</span>';
         return '<span class="ac-etat actif">Actif</span>';
       }
-      var res = { ok: 'Réussie', echec: 'Échouée', bloque: 'Bloquée', nouvel_appareil: 'Nouvel appareil', coupure_responsable: 'Accès coupé', reinitialisation: 'Réinitialisation', activation: 'Activation', code_echec: 'Code incorrect', suspension: 'Suspension 48 h' };
-      carte('<h2>Mon équipe</h2><p>Vous pouvez couper immédiatement l’accès d’un membre de votre équipe. Seule FIDAL Notaires peut ensuite le rétablir.</p>' +
+      var res = { ok: 'Réussie', echec: 'Échouée', bloque: 'Bloquée', nouvel_appareil: 'Nouvel appareil', coupure_responsable: 'Accès coupé', reinitialisation: 'Réinitialisation', activation: 'Activation', code_echec: 'Code incorrect', suspension: 'Suspension 48 h', pause_volume: 'Pause automatique (volume)', pause_levee: 'Pause levée' };
+      carte('<h2>Mon équipe</h2><p>Vous pouvez couper immédiatement l’accès d’un membre de votre équipe ; seule FIDAL Notaires peut ensuite le rétablir. Un accès mis en pause automatiquement pour un volume de consultations inhabituel peut en revanche être rétabli par vous.</p>' +
         '<div class="ac-onglets"><button type="button" data-o="membres" aria-pressed="true">Membres</button><button type="button" data-o="connexions" aria-pressed="false">Connexions</button><button type="button" data-o="pieces" aria-pressed="false">Pièces consultées</button></div>' +
         '<div class="ac-defile" id="acOnglet"></div><div class="ac-erreur"></div><button class="ac-btn second" id="acRetour">Retour au portail</button>', true);
       function rendre(o) {
         var z = document.getElementById('acOnglet');
         if (o === 'membres') z.innerHTML = '<table class="ac-table"><tr><th>Personne</th><th>Rôle</th><th>Dernière connexion</th><th>État</th><th></th></tr>' + d.membres.map(function (m) {
           return '<tr><td><strong>' + h(m.prenom + ' ' + m.nom) + '</strong><br><span style="color:var(--doux);font-size:12px">' + h(m.courriel) + '</span></td><td>' + (m.role === 'responsable' ? 'Responsable' : 'Lecture') + '</td><td>' + (m.derniere_connexion ? dateFr(m.derniere_connexion) : '—') + '</td><td>' + etat(m) + '</td>' +
-            '<td>' + (m.id !== ETAT.utilisateur.id && !m.coupe_par_responsable ? '<button type="button" data-couper="' + m.id + '" data-nom="' + h(m.prenom + ' ' + m.nom) + '">Couper l’accès</button>' : '') + '</td></tr>'; }).join('') + '</table>';
+            '<td>' + (m.pause_volume ? '<button type="button" data-retablir="' + m.id + '" data-nom="' + h(m.prenom + ' ' + m.nom) + '">Rétablir l’accès</button> ' : '') +
+            (m.id !== ETAT.utilisateur.id && !m.coupe_par_responsable ? '<button type="button" data-couper="' + m.id + '" data-nom="' + h(m.prenom + ' ' + m.nom) + '">Couper l’accès</button>' : '') + '</td></tr>'; }).join('') + '</table>';
         else if (o === 'connexions') z.innerHTML = '<table class="ac-table"><tr><th>Date</th><th>Personne</th><th>Appareil</th><th>Résultat</th></tr>' + d.connexions.map(function (c) {
           return '<tr><td>' + dateFr(c.horodatage) + '</td><td>' + h((c.prenom || '') + ' ' + (c.nom || '')) + '</td><td>' + h(c.appareil || '—') + '</td><td>' + h(res[c.resultat] || c.resultat) + (c.detail ? '<br><span style="color:var(--doux);font-size:12px">' + h(c.detail) + '</span>' : '') + '</td></tr>'; }).join('') + '</table>';
         else z.innerHTML = '<table class="ac-table"><tr><th>Date</th><th>Personne</th><th>Pièce</th><th>Site</th></tr>' + d.telechargements.map(function (t) {
           return '<tr><td>' + dateFr(t.horodatage) + '</td><td>' + h(t.prenom + ' ' + t.nom) + '</td><td>' + h(t.nom_fichier) + '</td><td>' + h((t.site || '') + (t.commune ? ' · ' + t.commune : '')) + '</td></tr>'; }).join('') + '</table>';
+        z.querySelectorAll('[data-retablir]').forEach(function (b) {
+          b.onclick = function () {
+            if (!confirm('Rétablir l’accès de ' + b.getAttribute('data-nom') + ' ?')) return;
+            api('retablir_pause', { utilisateur_id: Number(b.getAttribute('data-retablir')) }).then(ecranEquipe).catch(function (e) { erreur(e.message); });
+          };
+        });
         z.querySelectorAll('[data-couper]').forEach(function (b) {
           b.onclick = function () {
             if (!confirm('Couper immédiatement l’accès de ' + b.getAttribute('data-nom') + ' ? Seule FIDAL Notaires pourra le rétablir.')) return;
