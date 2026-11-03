@@ -808,7 +808,7 @@ body.charge-cartes .carte-zone,body.charge-cartes .incrustations{opacity:0}
           var ref = s.references_ || {}, fiche = s.fiche || {};
           return { cle: s.id, nom: s.nom || '', commune: s.commune || '—', cp: s.code_postal || '', region: regionDe(s.code_postal), rue: s.adresse || (s.nom || ''),
             lat: s.lat || 46.6, lng: s.lng || 2.4, nature: ref.nature || fiche.nature || (s.nom || 'Bien immobilier'), groupe: fiche.designation ? fiche.designation.slice(0, 60) : '',
-            surface: ref.surface || '', cadastreTexte: ref.cadastre || '', titre: ref.titre || '', designation: fiche.designation || '', pieces: s.pieces || [], maj_le: s.maj_le,
+            surface: ref.surface || '', cadastreTexte: ref.cadastre || '', titre: ref.titre || '', acteDate: ref.acte_date || '', notaire: ref.notaire || '', designation: fiche.designation || '', pieces: s.pieces || [], maj_le: s.maj_le,
             planPieceId: s.plan_piece_id || null, organisationVisible: !!s.organisation_visible, entree: ref.entree || '' };
         });
         document.getElementById('nomClient').textContent = d.client;
@@ -876,7 +876,7 @@ var DOMAINES = [
 /* Thématiques documentaires : même ordre que dans l'administration */
 var THEMES = [
   { titre: 'Désignation et plans', rub: 1 },
-  { titre: 'Titre', rub: 2 },
+  { titre: 'Origine de propriété', rub: 2 },
   { titre: 'Servitudes', rub: 7 },
   { titre: 'Exploitation', rub: 3 },
   { titre: 'Fiscalité', rub: 4 },
@@ -885,6 +885,14 @@ var THEMES = [
 ];
 function piecesRubrique(s, rub) { return (s.pieces || []).filter(function (p) { return p.rubrique === rub; }); }
 /* rubrique conditionnelle (Organisation de l'immeuble) : visible dès qu'un document y est déposé, OU si l'étude a coché « afficher au client » pour ce site dans ARGOSAdmin */
+/* Origine de propriété pour la fiche : « Acquisition · acte du 14 mars 2019 · Me Dupont » (les éléments facultatifs absents sont omis) */
+function origineProp(s) {
+  var p = [];
+  if (s.titre) p.push(s.titre);
+  if (s.acteDate && /^\d{4}-\d{2}-\d{2}$/.test(s.acteDate)) p.push('acte du ' + dateLongue(new Date(s.acteDate + 'T12:00:00')));
+  if (s.notaire) p.push(s.notaire);
+  return p.length ? p.join(' · ') : 'Non renseignée';
+}
 function themesDuSite(s) { return THEMES.filter(function (t) { return !t.conditionnel || piecesRubrique(s, t.rub).length || s.organisationVisible; }); }
 function lienPiece(p) { return '/api/argos?action=piece&id=' + p.id; }
 /* v0.44 : ÉCHÉANCES À SURVEILLER — dates FICTIVES pour la maquette, tirées du numéro du site ;
@@ -1733,6 +1741,7 @@ function construirePdf(s, avecBail, plans) {
   var y0 = y;
   var yG = colonne([{ lib: 'Nature', val: s.nature }, { lib: 'Parcelles', val: s.parcelles ? s.parcelles.join(', ') : 'Lecture en cours' },
     { lib: 'Surface cadastrale', val: s.surface || 'Non lue' }, { lib: 'Zonage d’urbanisme', val: s.zonage || 'Non lu' },
+    { lib: 'Origine de propriété', val: origineProp(s) },
     { lib: 'Date d’entrée dans le patrimoine', val: s.entree && /^\d{4}-\d{2}-\d{2}$/.test(s.entree) ? dateLongue(new Date(s.entree + 'T12:00:00')) : 'Non renseignée' }], xG, cL, titreCol('Caractéristiques du site', xG, cL, y0));
   var yD = titreCol('Extrait du plan cadastral', xD, cL, y0);
   /* 02/11 : l'extrait cadastral prend exactement la HAUTEUR de la colonne de gauche (titre et légende compris) ;
