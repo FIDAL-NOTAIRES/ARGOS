@@ -451,11 +451,11 @@ const actions = {
       const deja = await sql`SELECT alerte_volume_le FROM argos_utilisateur WHERE id = ${u.id}`;
       if (!deja[0].alerte_volume_le || new Date(deja[0].alerte_volume_le) < new Date(Date.now() - 60 * 60 * 1000)) {
         await sql`UPDATE argos_utilisateur SET alerte_volume_le = NOW() WHERE id = ${u.id}`;
-        await sql`INSERT INTO argos_evenement (client_id, nature, detail) VALUES (${client.id}, 'volume_inhabituel', ${`${u.prenom} ${u.nom} (${u.courriel}) : ${heure} pièces ouvertes en une heure (seuil ${sAlerte}). Pas de blocage.`})`;
+        await sql`INSERT INTO argos_evenement (client_id, nature, detail) VALUES (${client.id}, 'volume_inhabituel', ${`${u.prenom} ${u.nom} (${u.courriel}) : ${heure} pièce${heure > 1 ? "s" : ""} ouverte${heure > 1 ? "s" : ""} en une heure (seuil ${sAlerte}). Pas de blocage.`})`;
         const resp = await sql`SELECT courriel FROM argos_utilisateur WHERE client_id = ${client.id} AND role = 'responsable' AND active = TRUE AND suspendu_le IS NULL AND coupe_par_responsable IS NULL AND id <> ${u.id}`;
         await courriel(sql, client.id, [process.env.ADMIN_COURRIEL, ...resp.map((x) => x.courriel)],
           `[ARGOS] Volume de consultations inhabituel — ${client.nom}`,
-          `${u.prenom} ${u.nom} (${u.courriel}) a ouvert ${heure} pièces en une heure sur le portail du patrimoine foncier de ${client.nom}. L'accès reste ouvert ; cette information vous est donnée à titre de vigilance.\n\nFIDAL Notaires`);
+          `${u.prenom} ${u.nom} (${u.courriel}) a ouvert ${heure} pièce${heure > 1 ? "s" : ""} en une heure sur le portail du patrimoine foncier de ${client.nom}. L'accès reste ouvert ; cette information vous est donnée à titre de vigilance.\n\nFIDAL Notaires`);
       }
     }
     await sql`INSERT INTO argos_telechargement (utilisateur_id, piece_id) VALUES (${u.id}, ${id})`;
