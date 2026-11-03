@@ -105,8 +105,11 @@ async function relayer(req, res, bucket, cle, nomFichier) {
 function parcellesDepuisTexte(texteRefs) {
   const mots = String(texteRefs || "").toUpperCase().replace(/N[°º]/g, " ").replace(/[,;/()]/g, " ").split(/\s+/).filter(Boolean);
   const bruit = new Set(["SECTION", "SECTIONS", "PARCELLE", "PARCELLES", "ET", "DE", "DU", "DES", "LA", "LE", "LES", "A", "AU", "LIEUDIT", "LIEU-DIT", "CADASTRE", "CADASTREE", "CADASTREES"]);
-  const out = [], vues = new Set(); let section = null, m;
+  const out = [], vues = new Set(); let section = null, m, prec = "";
   for (const mot of mots) {
+    // la lettre « A » est une section valide juste après le mot « Section » (sinon c'est la préposition « à »)
+    if (prec === "SECTION" && /^[0-9]?[A-Z]{1,2}$/.test(mot)) { section = mot; prec = mot; continue; }
+    prec = mot;
     if (bruit.has(mot)) continue;
     if ((m = mot.match(/^([0-9]?[A-Z]{1,2})(\d{1,4})$/))) { section = m[1]; }
     else if (/^[0-9]?[A-Z]{1,2}$/.test(mot)) { section = mot; continue; }
@@ -513,10 +516,10 @@ const actions = {
         if (insee) await sql`UPDATE argos_site SET insee = ${insee} WHERE id = ${s.id}`;
       }
       if (!insee) return { controle: "commune_inconnue", bloque: false };
-      const manquantes = [];
-      for (const pc of parcelles) {
-        const existe = await parcelleExiste(insee, pc.section, pc.numero);
-        if (existe === false) manquantes.push(`${pc.section} ${pc.numero}`);
+      const manquantes = [], aVerifier = parcelles.slice(0, 60);   // jusqu'à 60 parcelles, par lots de 6 en parallèle
+      for (let i0 = 0; i0 < aVerifier.length; i0 += 6) {
+        const res = await Promise.all(aVerifier.slice(i0, i0 + 6).map((pc) => parcelleExiste(insee, pc.section, pc.numero).then((e) => ({ pc, e }))));
+        res.forEach((r) => { if (r.e === false) manquantes.push(`${r.pc.section} ${r.pc.numero}`); });
       }
       if (!manquantes.length) {
         await sql`UPDATE argos_site SET cadastre_controle_le = NOW(), cadastre_alerte_le = NULL, cadastre_alerte_detail = NULL WHERE id = ${s.id}`;
