@@ -32,7 +32,7 @@ const { neon } = require("@neondatabase/serverless");
 const crypto = require("crypto");
 const { Readable } = require("stream");
 
-const RUBRIQUES = { 1: "Désignation et plans", 2: "Titre", 3: "Exploitation", 4: "Fiscalité", 5: "Diagnostics", 6: "Organisation de l'immeuble / de la zone", 7: "Servitudes" };
+const RUBRIQUES = { 1: "Désignation et plans", 2: "Origine de propriété", 3: "Exploitation", 4: "Fiscalité", 5: "Diagnostics", 6: "Organisation de l'immeuble / de la zone", 7: "Servitudes" };
 const DUREE_SESSION_MS = 10 * 60 * 60 * 1000;      // 10 heures
 const DUREE_APPAREIL_J = 400;                        // cookie d'appareil : 400 jours
 const DUREE_APPAIRAGE_MS = 10 * 60 * 1000;           // code QR : 10 minutes
