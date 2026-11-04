@@ -414,6 +414,7 @@ body.charge-cartes .carte-zone,body.charge-cartes .incrustations{opacity:0}
       <p>Choisissez un site dans la liste ou sur la carte.</p>
     </div>
     <div class="outils">
+      <input type="search" id="rechercheSite" placeholder="Rechercher : commune, rue, référence…" aria-label="Rechercher un site" autocomplete="off">
       <select id="commune" aria-label="Filtrer par commune"></select>
       <select id="region" aria-label="Filtrer par région"></select>
       <div class="vues" role="group" aria-label="Classement de la liste">
@@ -1372,23 +1373,61 @@ function cleCom(s) { return s.region + '|' + s.commune; }
 /* v0.36 : l'invitation d'accueil se place dans la colonne de gauche, sous les régions ; la colonne fiche n'apparaît qu'au choix d'un site */
 /* v0.43 : l'invitation d'accueil est en tête de colonne (HTML fixe, masquée dès qu'un site est ouvert) */
 function blocAccueil() { return ''; }
+/* 04/11 : adresse découpée en type de voie, nom de voie et numéro ; tri dans cet ordre (le type compte : avenue avant boulevard),
+   numéros comparés comme des nombres (2 avant 12) ; affichage « avenue Foch, 4 » */
+var TYPES_VOIE = ['allée','allées','avenue','boulevard','chaussée','chemin','cité','clos','cours','domaine','esplanade','faubourg','hameau','impasse','lieu-dit','lotissement','parvis','passage','place','placette','promenade','quai','quartier','résidence','rond-point','route','rue','ruelle','sente','sentier','square','traverse','villa','voie','zone',
+  'ZA','ZAC','ZI','zone d’activités','zone artisanale','zone industrielle','zone commerciale','parc d’activités','port'];
+var ABR_VOIE = { av: 'avenue', 'av.': 'avenue', bd: 'boulevard', 'bd.': 'boulevard', bld: 'boulevard', che: 'chemin', imp: 'impasse', pl: 'place', 'pl.': 'place', rte: 'route', sq: 'square', all: 'allée', fg: 'faubourg', crs: 'cours' };
+function sansAccent(x) { return String(x || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase(); }
+function decouperAdresse(s) {
+  if (s._adr) return s._adr;
+  var brut = String(s.rue || '').split(',')[0].trim(), num = '', reste = brut, m;
+  if ((m = brut.match(/^(\d+)\s*(?:-\s*\d+\s*)?((?:bis|ter|quater|[a-d])\b)?[\s,]*/i))) { num = brut.slice(0, m[0].length).replace(/[\s,]+$/, ''); reste = brut.slice(m[0].length); }
+  var bas = sansAccent(reste), type = '', nom = reste;
+  var types = TYPES_VOIE.slice().sort(function (a, b) { return b.length - a.length; });
+  for (var i = 0; i < types.length; i++) {
+    var tt = sansAccent(types[i]);
+    if (bas === tt || bas.indexOf(tt + ' ') === 0) { type = types[i]; nom = reste.slice(types[i].length).trim(); break; }
+  }
+  if (!type) { var mot = bas.split(' ')[0]; if (ABR_VOIE[mot]) { type = ABR_VOIE[mot]; nom = reste.slice(mot.length).trim(); } }
+  var n = parseInt(num, 10);
+  return (s._adr = { type: type, nom: nom, num: num, n: isNaN(n) ? Infinity : n, suffixe: num.replace(/^\d+/, '').trim().toLowerCase() });
+}
+function compareAdresses(a, b) {
+  var x = decouperAdresse(a), y = decouperAdresse(b);
+  return x.type.localeCompare(y.type, 'fr') || x.nom.localeCompare(y.nom, 'fr', { sensitivity: 'base' }) || (x.n - y.n) || x.suffixe.localeCompare(y.suffixe, 'fr') || (a.nom || '').localeCompare(b.nom || '', 'fr');
+}
+function adresseListe(s) {
+  var d = decouperAdresse(s);
+  if (!d.type && !d.nom) return s.rue;
+  var voie = (d.type ? d.type + ' ' : '') + d.nom;
+  return d.num ? voie + ', ' + d.num : voie;
+}
+/* recherche par mot : chaque mot tapé doit se retrouver dans le site (commune, rue, nom, code postal, références cadastrales), sans tenir compte des accents */
+function motsRecherche() { var c = document.getElementById('rechercheSite'); return c ? sansAccent(c.value).split(/\s+/).filter(Boolean) : []; }
+function correspond(s, mots) {
+  if (!mots.length) return true;
+  var tas = sansAccent([s.commune, s.rue, adresseListe(s), s.nom, s.cp, s.cadastreTexte, s.nature].join(' '));
+  return mots.every(function (m) { return tas.indexOf(m) >= 0; });
+}
+document.addEventListener('input', function (e) { if (e.target && e.target.id === 'rechercheSite') construireListe(); });
 function construireListe() {
   setTimeout(majToutPlier, 0);
-  var q = selCommune.value, r = selRegion.value;
+  var q = selCommune.value, r = selRegion.value, mots = motsRecherche();
   visibles = SITES.filter(function (s) {
-    return (!r || s.region === r) && (!q || s.commune === q);
-  }).sort(function (a, b) { return a.region.localeCompare(b.region, 'fr') || a.commune.localeCompare(b.commune, 'fr') || a.rue.localeCompare(b.rue, 'fr'); });
-  if (!visibles.length) { elListe.innerHTML = '<p class="vide">Aucun site ne correspond. Choisissez une autre commune ou une autre région.</p>'; return; }
-  var tout = !!q || !!r;
+    return (!r || s.region === r) && (!q || s.commune === q) && correspond(s, mots);
+  }).sort(function (a, b) { return a.region.localeCompare(b.region, 'fr') || a.commune.localeCompare(b.commune, 'fr') || compareAdresses(a, b); });
+  if (!visibles.length) { elListe.innerHTML = '<p class="vide">' + (mots.length ? 'Aucun site ne correspond à votre recherche.' : 'Aucun site ne correspond. Choisissez une autre commune ou une autre région.') + '</p>'; return; }
+  var tout = !!q || !!r || mots.length > 0;
   var html = '';
   if (modeListe === 'commune') {
-    visibles.sort(function (a, b) { return a.commune.localeCompare(b.commune, 'fr') || a.rue.localeCompare(b.rue, 'fr'); });
+    visibles.sort(function (a, b) { return a.commune.localeCompare(b.commune, 'fr') || compareAdresses(a, b); });
     Array.from(new Set(visibles.map(function (s) { return s.commune; }))).forEach(function (com) {
       var deCom = visibles.filter(function (s) { return s.commune === com; });
       var k = 'C|' + com, oC = tout || !!ouverts[k];
       html += '<button type="button" class="pli com" style="padding-left:14px" data-pli="' + k + '" aria-expanded="' + oC + '">' + CHEV + com + ' (' + cpDe(com, deCom) + ')<small>' + deCom.length + '</small></button>';
       if (!oC) return;
-      deCom.forEach(function (s) { html += '<button type="button" class="rue' + (courant === s.id ? ' actif' : '') + '" style="padding-left:38px" data-id="' + s.id + '">' + s.rue + signalRue(s) + '</button>'; });
+      deCom.forEach(function (s) { html += '<button type="button" class="rue' + (courant === s.id ? ' actif' : '') + '" style="padding-left:38px" data-id="' + s.id + '">' + echapper(adresseListe(s)) + signalRue(s) + '</button>'; });
     });
     elListe.innerHTML = html + blocAccueil();
     return;
@@ -1404,7 +1443,7 @@ function construireListe() {
       html += '<button type="button" class="pli com" data-pli="' + k + '" aria-expanded="' + oC + '">' + CHEV + com + '<small>' + deCom.length + '</small></button>';
       if (!oC) return;
       deCom.forEach(function (s) {
-        html += '<button type="button" class="rue' + (courant === s.id ? ' actif' : '') + '" data-id="' + s.id + '">' + s.rue + signalRue(s) + '</button>';
+        html += '<button type="button" class="rue' + (courant === s.id ? ' actif' : '') + '" data-id="' + s.id + '">' + echapper(adresseListe(s)) + signalRue(s) + '</button>';
       });
     });
   });
