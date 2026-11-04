@@ -368,6 +368,14 @@ body.charge-cartes .carte-zone,body.charge-cartes .incrustations{opacity:0}
 #blocageFiche h3{margin:0 0 12px;font-size:19px;color:#A01040}
 #blocageFiche p{margin:0 0 18px;line-height:1.55;font-size:15px}
 #blocageFiche .ac-btn{width:auto;min-width:140px}
+.cf-fond{position:fixed;inset:0;z-index:3000;background:rgba(15,34,56,.72);display:flex;align-items:center;justify-content:center;padding:20px}
+.cf-fond[hidden]{display:none}
+.cf-fond .cf-carte{background:#fff;color:#1B2430;border-radius:14px;max-width:520px;width:100%;padding:26px 28px;box-shadow:0 20px 60px rgba(0,0,0,.35);border-top:6px solid #C8962E}
+.cf-fond h3{margin:0 0 12px;font-size:19px;color:#0F2238}
+.cf-fond p{margin:0 0 12px;line-height:1.55;font-size:15px}
+.cf-actions{display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;margin-top:18px}
+.cf-actions .ac-btn{width:auto;min-width:140px}
+.cf-actions .cf-non{background:#fff;color:#0F2238;border:1px solid #9AA5B1}
 </style>
 </head>
 <body class="charge-cartes">
@@ -2114,6 +2122,12 @@ function exporterFiche(s, avecBail, mode) {
      une parcelle disparue ou renumérotée bloque la fiche entière (pas de fiche partielle) */
   controlerCadastre(s).then(function (c) {
     if (c && c.bloque) { afficherBlocageFiche(c.message); var stop = new Error('fiche bloquée'); stop.silencieux = true; throw stop; }
+    /* 04/11 : contrôle qui ne conclut pas (références absentes ou illisibles, commune inconnue, cadastre injoignable) :
+       l'utilisateur confirme ; la fiche sort alors SANS AUCUNE mention sur le document (instruction de JFD) */
+    if (c && c.controle !== 'ok') return confirmerFiche().then(function (oui) {
+      if (!oui) { annoncer('Génération de la fiche annulée.'); var stop2 = new Error('fiche annulée'); stop2.silencieux = true; throw stop2; }
+    });
+  }).then(function () {
     annoncer('Préparation des plans du site…');
     return preparerPlans(s, avecBail);
   }).then(function (plans) {
@@ -2139,6 +2153,24 @@ function controlerCadastre(s) {
   return fetch('/api/argos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify({ action: 'controle_cadastre', site_id: s.cle }) })
     .then(function (r) { return r.ok ? r.json() : { controle: 'indisponible', bloque: false }; })
     .catch(function () { return { controle: 'indisponible', bloque: false }; });
+}
+function confirmerFiche() {
+  return new Promise(function (fin) {
+    var v = document.getElementById('confirmeFiche');
+    if (!v) {
+      v = document.createElement('div'); v.id = 'confirmeFiche'; v.className = 'cf-fond'; v.setAttribute('role', 'alertdialog'); v.setAttribute('aria-modal', 'true'); v.setAttribute('aria-labelledby', 'cfTitre');
+      v.innerHTML = '<div class="bf-carte cf-carte"><h3 id="cfTitre">Vérification cadastrale incomplète</h3>' +
+        '<p>Les références cadastrales de ce site n’ont pas pu être vérifiées auprès du cadastre.</p>' +
+        '<p>Souhaitez-vous tout de même générer la fiche de synthèse ?</p>' +
+        '<div class="cf-actions"><button type="button" class="ac-btn cf-non" id="cfNon">Annuler</button><button type="button" class="ac-btn" id="cfOui">Générer la fiche</button></div></div>';
+      document.body.appendChild(v);
+    }
+    function repondre(oui) { v.hidden = true; document.removeEventListener('keydown', clavier); v.onclick = null; fin(oui); }
+    function clavier(e) { if (e.key === 'Escape') repondre(false); }
+    v.onclick = function (e) { if (e.target === v || e.target.id === 'cfNon') repondre(false); else if (e.target.id === 'cfOui') repondre(true); };
+    document.addEventListener('keydown', clavier);
+    v.hidden = false; document.getElementById('cfOui').focus();
+  });
 }
 function afficherBlocageFiche(message) {
   var v = document.getElementById('blocageFiche');
