@@ -38,6 +38,15 @@ button{font:inherit;cursor:pointer}
 .outils{padding:12px;display:flex;flex-direction:column;gap:8px;border-bottom:1px solid var(--trait)}
 .outils input,.outils select{height:34px;border:1px solid var(--trait);border-radius:6px;padding:0 10px;font:inherit;font-size:13px;background:#fff;color:var(--texte)}
 .outils input:focus,.outils select:focus{outline:2px solid var(--canard);outline-offset:-1px}
+.rech-zone{position:relative}
+.rech-zone input{width:100%;box-sizing:border-box}
+.rech-suggest{position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:1200;margin:0;padding:4px 0;list-style:none;background:#fff;border:1px solid var(--trait);border-radius:8px;box-shadow:0 10px 30px rgba(15,34,56,.18);max-height:320px;overflow-y:auto}
+.rech-suggest[hidden]{display:none}
+.rech-suggest li{padding:7px 12px;cursor:pointer;font-size:13px;line-height:1.35;color:var(--texte)}
+.rech-suggest li b{display:block;font-weight:600}
+.rech-suggest li span{display:block;font-size:12px;color:var(--doux)}
+.rech-suggest li[data-id]:hover,.rech-suggest li.actif{background:var(--fond)}
+.rech-suggest li.rech-vide{cursor:default;color:var(--doux);font-style:italic}
 .vues{display:flex;border:1px solid var(--trait);border-radius:6px;overflow:hidden}
 .vues button{flex:1;height:30px;border:0;background:#fff;font-size:13px;color:var(--doux)}
 .vues button[aria-pressed="true"]{background:var(--nuit);color:#fff}
@@ -414,7 +423,10 @@ body.charge-cartes .carte-zone,body.charge-cartes .incrustations{opacity:0}
       <p>Choisissez un site dans la liste ou sur la carte.</p>
     </div>
     <div class="outils">
-      <input type="search" id="rechercheSite" placeholder="Rechercher : commune, rue, référence…" aria-label="Rechercher un site" autocomplete="off">
+      <div class="rech-zone">
+        <input type="search" id="rechercheSite" placeholder="Rechercher : commune, rue, référence…" aria-label="Rechercher un site" autocomplete="off" role="combobox" aria-expanded="false" aria-controls="rechSuggest" aria-autocomplete="list">
+        <ul id="rechSuggest" class="rech-suggest" role="listbox" hidden></ul>
+      </div>
       <select id="commune" aria-label="Filtrer par commune"></select>
       <select id="region" aria-label="Filtrer par région"></select>
       <div class="vues" role="group" aria-label="Classement de la liste">
@@ -1410,7 +1422,43 @@ function correspond(s, mots) {
   var tas = sansAccent([s.commune, s.rue, adresseListe(s), s.nom, s.cp, s.cadastreTexte, s.nature].join(' '));
   return mots.every(function (m) { return tas.indexOf(m) >= 0; });
 }
-document.addEventListener('input', function (e) { if (e.target && e.target.id === 'rechercheSite') construireListe(); });
+/* 04/11 : propositions en temps réel sous le champ (8 au plus), choix au clic ou au clavier (flèches, Entrée, Échap) */
+var rechActif = -1;
+function majSuggestions() {
+  var c = document.getElementById('rechercheSite'), ul = document.getElementById('rechSuggest');
+  var mots = motsRecherche(); rechActif = -1;
+  if (!mots.length) { ul.hidden = true; c.setAttribute('aria-expanded', 'false'); return; }
+  var trouves = SITES.filter(function (s) { return correspond(s, mots); })
+    .sort(function (a, b) { return a.commune.localeCompare(b.commune, 'fr') || compareAdresses(a, b); });
+  if (!trouves.length) { ul.innerHTML = '<li class="rech-vide">Aucun site ne correspond</li>'; }
+  else {
+    ul.innerHTML = trouves.slice(0, 8).map(function (s, i) {
+      return '<li role="option" id="rechOpt' + i + '" data-id="' + s.id + '"><b>' + echapper(adresseListe(s)) + '</b><span>' + echapper(s.cp + ' ' + s.commune + (s.nom && s.nom !== s.rue ? ' · ' + s.nom : '')) + '</span></li>';
+    }).join('') + (trouves.length > 8 ? '<li class="rech-vide">' + (trouves.length - 8) + ' autre' + (trouves.length > 9 ? 's' : '') + ' dans la liste</li>' : '');
+  }
+  ul.hidden = false; c.setAttribute('aria-expanded', 'true');
+}
+function fermerSuggestions() { var ul = document.getElementById('rechSuggest'); if (ul) ul.hidden = true; var c = document.getElementById('rechercheSite'); if (c) { c.setAttribute('aria-expanded', 'false'); c.removeAttribute('aria-activedescendant'); } rechActif = -1; }
+function choisirSuggestion(li) { if (!li || !li.getAttribute('data-id')) return; fermerSuggestions(); choisir(+li.getAttribute('data-id'), true); }
+document.addEventListener('input', function (e) { if (e.target && e.target.id === 'rechercheSite') { construireListe(); majSuggestions(); } });
+document.addEventListener('keydown', function (e) {
+  if (!e.target || e.target.id !== 'rechercheSite') return;
+  var ul = document.getElementById('rechSuggest'), opts = ul.hidden ? [] : ul.querySelectorAll('li[data-id]');
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    if (!opts.length) return; e.preventDefault();
+    rechActif = e.key === 'ArrowDown' ? (rechActif + 1) % opts.length : (rechActif <= 0 ? opts.length - 1 : rechActif - 1);
+    opts.forEach(function (o, i) { o.classList.toggle('actif', i === rechActif); o.setAttribute('aria-selected', String(i === rechActif)); });
+    e.target.setAttribute('aria-activedescendant', opts[rechActif].id);
+  } else if (e.key === 'Enter') {
+    if (opts.length) { e.preventDefault(); choisirSuggestion(opts[rechActif >= 0 ? rechActif : 0]); }
+  } else if (e.key === 'Escape') { fermerSuggestions(); }
+});
+document.addEventListener('mousedown', function (e) {
+  var li = e.target.closest && e.target.closest('#rechSuggest li[data-id]');
+  if (li) { e.preventDefault(); choisirSuggestion(li); return; }
+  if (!e.target.closest || !e.target.closest('.rech-zone')) fermerSuggestions();
+});
+document.addEventListener('focusin', function (e) { if (e.target && e.target.id === 'rechercheSite' && e.target.value) majSuggestions(); });
 function construireListe() {
   setTimeout(majToutPlier, 0);
   var q = selCommune.value, r = selRegion.value, mots = motsRecherche();
