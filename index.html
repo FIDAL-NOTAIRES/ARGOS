@@ -1780,7 +1780,7 @@ function construirePdf(s, avecBail, plans) {
   if (plans) {
     assurerPlace(62);
     y = titreCol('Situation du site', xG, larg, y + 1);
-    y = Math.max(plan(plans.aerien, xG, cL, PLAN_H / PLAN_L, y), plan(plans.commune, xD, cL, PLAN_H / PLAN_L, y));
+    y = Math.max(plan(plans.aerien, xG, cL, (plans.aerien && plans.aerien.ratio) || PLAN_H / PLAN_L, y), plan(plans.commune, xD, cL, (plans.commune && plans.commune.ratio) || PLAN_H / PLAN_L, y));
   }
 
   /* --- 4. Liste des pièces : UNE CARTE PAR CATÉGORIE (02/11) --- bandeau de couleur à gauche, intitulé en gras avec le nombre de documents,
@@ -1791,15 +1791,16 @@ function construirePdf(s, avecBail, plans) {
     police(8.6);
     liste.forEach(function (p) { n += doc.splitTextToSize(pdfTexte(p.nom), cL - 12).length; });
     if (!liste.length) n = 1;
-    return { liste: liste, h: 11.8 + (n - 1) * 3.7 };
+    return { liste: liste, h: (avecBail ? 10.4 : 11.8) + (n - 1) * 3.7 };
   }
   function dessinerCarte(t, m, x, yy, hh) {
     couleur(PDF_C.lagon, 'fond'); doc.rect(x, yy, cL, hh, 'F');
     couleur(PDF_C.canard, 'fond'); doc.rect(x, yy, 1.6, hh, 'F');
-    police(9.5, true); couleur(PDF_C.fonce); doc.text(pdfTexte(t.titre), x + 5, yy + 5);
+    var dy = avecBail ? 1.0 : 0;     /* fiche avec bail : cartes plus compactes pour tenir sur une page */
+    police(9.5, true); couleur(PDF_C.fonce); doc.text(pdfTexte(t.titre), x + 5, yy + 5 - dy);
     police(7.4); couleur(PDF_C.doux);
-    if (m.liste.length) doc.text(m.liste.length + (m.liste.length > 1 ? ' documents' : ' document'), x + cL - 3, yy + 5, { align: 'right' });
-    var yl = yy + 9.4;
+    if (m.liste.length) doc.text(m.liste.length + (m.liste.length > 1 ? ' documents' : ' document'), x + cL - 3, yy + 5 - dy, { align: 'right' });
+    var yl = yy + 9.4 - 2 * dy;
     if (!m.liste.length) { doc.setFont('helvetica', 'italic'); doc.setFontSize(8.4); couleur(PDF_C.doux); doc.text('Aucun document à ce stade', x + 5, yl); doc.setFont('helvetica', 'normal'); return; }
     police(8.6); couleur(PDF_C.texte);
     m.liste.forEach(function (p) {
@@ -1809,14 +1810,14 @@ function construirePdf(s, avecBail, plans) {
     });
   }
   var mesures = themesPdf.map(mesureCarte), besoinListe = 9.5 + 1;
-  for (var r0 = 0; r0 < mesures.length; r0 += 2) besoinListe += Math.max(mesures[r0].h, mesures[r0 + 1] ? mesures[r0 + 1].h : 0) + 2.6;
+  for (var r0 = 0; r0 < mesures.length; r0 += 2) besoinListe += Math.max(mesures[r0].h, mesures[r0 + 1] ? mesures[r0 + 1].h : 0) + (avecBail ? 1.8 : 2.6);
   assurerPlace(besoinListe);
   y = titreCol('Liste des pièces disponibles', xG, larg, y + 1);
   for (var r1 = 0; r1 < themesPdf.length; r1 += 2) {
     var hr = Math.max(mesures[r1].h, mesures[r1 + 1] ? mesures[r1 + 1].h : 0);
     dessinerCarte(themesPdf[r1], mesures[r1], xG, y, hr);
     if (themesPdf[r1 + 1]) dessinerCarte(themesPdf[r1 + 1], mesures[r1 + 1], xD, y, hr);
-    y += hr + 2.6;
+    y += hr + (avecBail ? 1.8 : 2.6);
   }
   /* lot 3 : code QR vers la fiche du site sur le portail (flashable au téléphone, cliquable à l'écran) — jamais d'adresse en clair */
   try {
@@ -1842,6 +1843,8 @@ function construirePdf(s, avecBail, plans) {
    Les tuiles de la Géoplateforme sont redessinées sur un canevas avec le contour de la parcelle ;
    le contour de la commune vient de geo.api.gouv.fr. Si un fond ne répond pas, la fiche le dit à la place de l'image. */
 var PLAN_L = 1000, PLAN_H = 500, PLAN_H_CADASTRE = 640;
+/* hauteur des deux vues « Situation du site » : 500 sur la fiche sans bail ; réduite sur la fiche avec bail pour qu'elle tienne sur une page */
+var HAUT_SITUATION = PLAN_H;
 function chargerImage(url) {
   return new Promise(function (res) {
     var im = new Image(), fini = false;
@@ -2012,7 +2015,7 @@ function planReconstitue(s) {
   });
 }
 function planAerien(s) {
-  var t = nouvelleToile(), cad = cadragePlan(formes.carte[s.id].getBounds().pad(0.7));
+  var t = nouvelleToile(HAUT_SITUATION), cad = cadragePlan(formes.carte[s.id].getBounds().pad(0.7), HAUT_SITUATION);
   var titre = 'Vue aérienne';
   return dessinerTuiles(t.ctx, cad, 'ORTHOIMAGERY.ORTHOPHOTOS', 'image/jpeg', 'normal', 19).then(function (ok) {
     if (!ok) return { titre: titre, img: null, absent: 'La vue aérienne n’a pas répondu.' };
@@ -2025,7 +2028,7 @@ function planCommune(s) {
   return contourCommune(s).then(function (geo) {
     var c = formes.carte[s.id].getBounds().getCenter();
     var emprise = geo ? boiteGeometrie(geo).pad(0.06) : L.latLng(c).toBounds(6000);
-    var t = nouvelleToile(), cad = cadragePlan(emprise);
+    var t = nouvelleToile(HAUT_SITUATION), cad = cadragePlan(emprise, HAUT_SITUATION);
     return dessinerTuiles(t.ctx, cad, 'GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2', 'image/png', 'normal', 19).then(function (ok) {
       if (!ok) return { titre: titre, img: null, absent: 'Le plan de la commune n’a pas répondu.' };
       var ctx = t.ctx;
@@ -2046,7 +2049,8 @@ function planCommune(s) {
     });
   });
 }
-function preparerPlans(s) {
+function preparerPlans(s, avecBail) {
+  HAUT_SITUATION = avecBail ? 330 : PLAN_H;
   var plans = {};
   function sur(f, cle, titre) { return f(s).catch(function () { return { titre: titre, img: null, absent: 'Plan indisponible : le fond n’a pas pu être recopié.' }; }).then(function (r) { plans[cle] = r; }); }
   return sur(planCadastre, 'cadastre', 'Plan cadastral')
@@ -2111,7 +2115,7 @@ function exporterFiche(s, avecBail, mode) {
   controlerCadastre(s).then(function (c) {
     if (c && c.bloque) { afficherBlocageFiche(c.message); var stop = new Error('fiche bloquée'); stop.silencieux = true; throw stop; }
     annoncer('Préparation des plans du site…');
-    return preparerPlans(s);
+    return preparerPlans(s, avecBail);
   }).then(function (plans) {
     var doc = construirePdf(s, avecBail, plans), nom = nomFiche(s, avecBail);
     if (mode === 'mail') {
