@@ -481,7 +481,7 @@ const actions = {
         `<body style="font-family:'Segoe UI',sans-serif;background:#F4F6F8;color:#0F2238;display:flex;min-height:100vh;align-items:center;justify-content:center;margin:0">` +
         `<div style="background:#fff;border-radius:12px;padding:28px 32px;max-width:460px;box-shadow:0 4px 18px rgba(15,34,56,.12)"><h2 style="font-family:Georgia,serif;margin:0 0 12px">Accès en pause</h2>` +
         `<p style="line-height:1.5">${echap(MESSAGE_PAUSE)}</p>` +
-        (mr ? `<p><a href="${echap(lienMailto(mr))}" style="display:inline-block;background:#33838B;color:#fff;text-decoration:none;padding:10px 16px;border-radius:8px">Demander la remise en service</a></p>` : "") +
+        (mr ? `<p><a href="${echap(lienMailto(mr))}" style="display:inline-block;background:#33838B;color:#fff;text-decoration:none;padding:10px 16px;border-radius:8px">Demander le rétablissement d’un accès</a></p>` : "") +
         `</div></body></html>`);
     }
     if (heure >= sAlerte) {
