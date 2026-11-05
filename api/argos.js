@@ -39,6 +39,26 @@ const DUREE_APPAIRAGE_MS = 10 * 60 * 1000;           // code QR : 10 minutes
 const SUSPENSION_MS = 48 * 60 * 60 * 1000;           // 5 échecs → 48 heures
 // LOT 4 (02/11/2026) — pause automatique pour volume inhabituel ; rétablissement par le responsable depuis le portail
 const MESSAGE_CADASTRE = "Les références cadastrales de ce site ne sont plus à jour, probablement à la suite d'une division ou d'un remaniement cadastral. Merci de vous rapprocher de FIDAL Notaires pour obtenir une fiche de synthèse actualisée.";
+// 05/11/2026 — courriels rédigés vers l'associé rattaché (textes validés par JFD le 04/11) ; l'adresse vient d'ARGOSAdmin (argos_client.contact_associe)
+function deNomClient(nom) { nom = String(nom || "").trim(); return (/^[aeiouyàâäéèêëîïôöùûü]/i.test(nom) ? "d'" : "de ") + nom; }
+const CLOTURE_MAITRE = "Je vous remercie par avance, et vous prie d'agréer, Cher Maître, l'expression de mes salutations distinguées.";
+function courrielRemise(contact, clientNom, signataire) {
+  if (!contact || !contact.courriel) return null;
+  return { a: contact.courriel, objet: `Demande de remise en service — portail du patrimoine foncier ${clientNom}`,
+    corps: `Cher Maître,\n\nMon accès au portail du patrimoine foncier ${deNomClient(clientNom)} a été mis en pause. Pourriez-vous procéder à sa remise en service ?\n\n${CLOTURE_MAITRE}\n\n${signataire}` };
+}
+async function contactAssocie(sql, client) {
+  try { const r = await sql`SELECT contact_associe FROM argos_client WHERE id = ${client.id}`; const c = r[0] && r[0].contact_associe; return c && c.courriel ? { courriel: c.courriel, prenom: c.prenom || "", nom: c.nom || "" } : null; }
+  catch { return null; }   // colonne absente tant que le SQL du 05/11 n'est pas passé
+}
+function lienMailto(m) { return "mailto:" + encodeURIComponent(m.a) + "?subject=" + encodeURIComponent(m.objet) + "&body=" + encodeURIComponent(m.corps); }
+async function erreurPause(sql, client, u, message) {
+  const e = new Error(message);
+  const contact = await contactAssocie(sql, client);
+  const m = courrielRemise(contact, client.nom, [u.prenom, u.nom].filter(Boolean).join(" "));
+  if (m) e.pause = m;
+  return e;
+}
 const MESSAGE_PAUSE = "Votre accès est mis en pause pour un volume de consultations inhabituel. Votre responsable peut le rétablir depuis le portail.";
 const COOKIE_SESSION = "argos_session", COOKIE_APPAREIL = "argos_appareil";
 const CODES_BANALS = /^(\d)\1{5}$|^012345$|^123456$|^234567$|^345678$|^456789$|^987654$|^876543$|^765432$|^654321$|^543210$|^112233$|^121212$|^123123$|^000000$|^111111$/;
@@ -256,6 +276,7 @@ const actions = {
     return {
       client: client.nom,
       utilisateur: u ? { id: u.id, courriel: u.courriel, nom: u.nom, prenom: u.prenom, role: u.role } : null,
+      contact: u ? await contactAssocie(sql, client) : null,
       appareil: app ? { type: app.type, libelle: app.libelle } : null,
       telephone: estTelephone(req.headers["user-agent"]),
     };
@@ -303,7 +324,11 @@ const actions = {
     const r = await sql`SELECT * FROM argos_utilisateur WHERE client_id = ${client.id} AND LOWER(courriel) = ${courrielSaisi}`;
     const u = r[0];
     const empeche = await utilisateurUtilisable(u);
-    if (empeche) { await new Promise((f) => setTimeout(f, 600)); await journal(sql, client.id, u ? u.id : null, null, u ? "bloque" : "echec", req, empeche, courrielSaisi); throw new Error(empeche); }
+    if (empeche) {
+      await new Promise((f) => setTimeout(f, 600)); await journal(sql, client.id, u ? u.id : null, null, u ? "bloque" : "echec", req, empeche, courrielSaisi);
+      if (empeche === MESSAGE_PAUSE && u.mdp_hachage && verifierHachage(p.mdp, u.mdp_hachage)) throw await erreurPause(sql, client, u, empeche);
+      throw new Error(empeche);
+    }
     if (!verifierHachage(p.mdp, u.mdp_hachage)) {
       const n = (u.echecs_mdp || 0) + 1;
       if (n >= 5) {
@@ -342,7 +367,11 @@ const actions = {
     const r = await sql`SELECT * FROM argos_utilisateur WHERE id = ${app.utilisateur_id} AND client_id = ${client.id}`;
     const u = r[0];
     const empeche = await utilisateurUtilisable(u);
-    if (empeche) { await journal(sql, client.id, u ? u.id : null, app.id, "bloque", req, empeche); throw new Error(empeche); }
+    if (empeche) {
+      await journal(sql, client.id, u ? u.id : null, app.id, "bloque", req, empeche);
+      if (empeche === MESSAGE_PAUSE && u.code_hachage && verifierHachage(texte(p.code, 10), u.code_hachage)) throw await erreurPause(sql, client, u, empeche);
+      throw new Error(empeche);
+    }
     if (!verifierHachage(texte(p.code, 10), u.code_hachage)) {
       const n = (u.echecs_code || 0) + 1;
       await sql`UPDATE argos_utilisateur SET echecs_code = ${n}, maj_le = NOW() WHERE id = ${u.id}`;
@@ -444,8 +473,16 @@ const actions = {
       await courriel(sql, client.id, [process.env.ADMIN_COURRIEL, ...resp.map((x) => x.courriel)],
         `[ARGOS · ANORMAL] Accès mis en pause pour volume inhabituel — ${client.nom}`,
         `L'accès de ${u.prenom} ${u.nom} (${u.courriel}) au portail du patrimoine foncier de ${client.nom} a été mis en pause automatiquement : ${motif}.\n\nLe responsable du portail peut rétablir cet accès depuis l'écran « Mon équipe ». FIDAL Notaires peut aussi le faire.\n\nFIDAL Notaires`);
-      res.statusCode = 429; res.setHeader("Content-Type", "text/plain; charset=utf-8");
-      return res.end(MESSAGE_PAUSE);
+      res.statusCode = 429;
+      const mr = courrielRemise(await contactAssocie(sql, client), client.nom, [u.prenom, u.nom].filter(Boolean).join(" "));
+      res.setHeader("Content-Type", "text/html; charset=utf-8");
+      const echap = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+      return res.end(`<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Accès en pause</title></head>` +
+        `<body style="font-family:'Segoe UI',sans-serif;background:#F4F6F8;color:#0F2238;display:flex;min-height:100vh;align-items:center;justify-content:center;margin:0">` +
+        `<div style="background:#fff;border-radius:12px;padding:28px 32px;max-width:460px;box-shadow:0 4px 18px rgba(15,34,56,.12)"><h2 style="font-family:Georgia,serif;margin:0 0 12px">Accès en pause</h2>` +
+        `<p style="line-height:1.5">${echap(MESSAGE_PAUSE)}</p>` +
+        (mr ? `<p><a href="${echap(lienMailto(mr))}" style="display:inline-block;background:#33838B;color:#fff;text-decoration:none;padding:10px 16px;border-radius:8px">Demander la remise en service</a></p>` : "") +
+        `</div></body></html>`);
     }
     if (heure >= sAlerte) {
       const deja = await sql`SELECT alerte_volume_le FROM argos_utilisateur WHERE id = ${u.id}`;
@@ -614,6 +651,6 @@ module.exports = async (req, res) => {
     if (res.writableEnded) return;
     res.statusCode = e.statusCode || (e.message && /Session expirée/.test(e.message) ? 401 : 400);
     res.setHeader("Content-Type", "application/json; charset=utf-8");
-    res.end(JSON.stringify({ erreur: e.message || "Erreur serveur", mdp: !!e.mdp }));
+    res.end(JSON.stringify({ erreur: e.message || "Erreur serveur", mdp: !!e.mdp, pause: e.pause || undefined }));
   }
 };
