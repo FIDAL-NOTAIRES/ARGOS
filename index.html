@@ -30,6 +30,9 @@ button{font:inherit;cursor:pointer}
 .chiffre strong{color:#fff;font-weight:600;font-size:13px}
 .demo{font-size:11px;color:var(--nuit);background:var(--cyan);border-radius:4px;padding:2px 8px}
 .espace{flex:1}
+.btn-tete[hidden]{display:none}
+a.btn-tete{text-decoration:none}
+.ac-btn-remise{display:inline-block;margin-top:10px;background:#33838B;color:#fff;text-decoration:none;padding:9px 14px;border-radius:8px;font-size:14px}
 .btn-tete{background:transparent;color:#fff;border:1px solid rgba(255,255,255,.35);border-radius:6px;padding:6px 12px;font-size:13px;display:inline-flex;align-items:center;gap:6px}
 .btn-tete:hover{background:rgba(255,255,255,.1)}
 .btn-tete svg{width:16px;height:16px}
@@ -405,6 +408,10 @@ body.charge-cartes .carte-zone,body.charge-cartes .incrustations{opacity:0}
   <div class="marque"><b>ARGOS</b><span>FIDAL Notaires</span></div>
   <div class="client" id="nomClient"></div>
   <div class="espace"></div>
+  <a class="btn-tete" id="btnContact" href="#" hidden title="Écrire à votre notaire pour être rappelé">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16v12H8l-4 4z"/></svg>
+    <span class="txt">Demander un rappel</span>
+  </a>
   <button class="btn-tete" id="btnVisite" type="button">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="12" rx="1"/><path d="M12 16v4M8 20h8"/></svg>
     <span class="txt">Mode visite</span>
@@ -576,7 +583,7 @@ body.charge-cartes .carte-zone,body.charge-cartes .incrustations{opacity:0}
     if (opt.method === 'POST') opt.body = JSON.stringify(Object.assign({ action: action }, params || {}));
     return fetch(opt.method === 'POST' ? '/api/argos' : '/api/argos?action=' + action, opt).then(function (r) {
       return r.json().catch(function () { return { erreur: 'Réponse illisible.' }; }).then(function (d) {
-        if (!r.ok) { var e = new Error(d.erreur || ('Erreur ' + r.status)); e.mdp = d.mdp; e.statut = r.status; throw e; }
+        if (!r.ok) { var e = new Error(d.erreur || ('Erreur ' + r.status)); e.mdp = d.mdp; e.statut = r.status; e.pause = d.pause; throw e; }
         return d;
       });
     });
@@ -588,6 +595,25 @@ body.charge-cartes .carte-zone,body.charge-cartes .incrustations{opacity:0}
     var premier = ac.querySelector('input'); if (premier) setTimeout(function () { premier.focus(); }, 50);
   }
   function erreur(t) { var e = ac.querySelector('.ac-erreur'); if (e) e.textContent = t || ''; }
+  /* 05/11 : courriels rédigés vers l'associé rattaché (textes validés le 04/11) */
+  function deNomClient(n) { n = String(n || '').trim(); return (/^[aeiouyàâäéèêëîïôöùûü]/i.test(n) ? 'd\u2019' : 'de ') + n; }
+  function mailto(m) { return 'mailto:' + encodeURIComponent(m.a) + '?subject=' + encodeURIComponent(m.objet) + '&body=' + encodeURIComponent(m.corps); }
+  function erreurAvecRemise(e) {
+    erreur(e.message);
+    if (!e.pause) return;
+    var z = ac.querySelector('.ac-erreur'); if (!z) return;
+    var a = document.createElement('a'); a.className = 'ac-btn-remise'; a.href = mailto(e.pause); a.textContent = 'Demander la remise en service';
+    z.appendChild(document.createElement('br')); z.appendChild(a);
+  }
+  function boutonRappel() {
+    var b = document.getElementById('btnContact'), c = ETAT && ETAT.contact, u = ETAT && ETAT.utilisateur;
+    if (!b) return;
+    if (!c || !c.courriel || !u) { b.hidden = true; return; }
+    var cl = ETAT.client || '';
+    b.href = mailto({ a: c.courriel, objet: 'Demande de rappel — portail du patrimoine foncier ' + cl,
+      corps: 'Cher Maître,\n\nJe souhaiterais m\u2019entretenir avec vous au sujet du patrimoine foncier ' + deNomClient(cl) + '. Pourriez-vous me recontacter, ou me proposer un rendez-vous, à votre convenance ?\n\nJe vous remercie par avance, et vous prie d\u2019agréer, Cher Maître, l\u2019expression de mes salutations distinguées.\n\n' + [u.prenom, u.nom].filter(Boolean).join(' ') });
+    b.hidden = false;
+  }
   function forceMdp(v) {
     var n = v.length, s = 0;
     if (n >= 12) s = 1; if (n >= 16) s = 2; if (n >= 20 && /[^a-zA-Z0-9]/.test(v)) s = 3;
@@ -609,7 +635,7 @@ body.charge-cartes .carte-zone,body.charge-cartes .incrustations{opacity:0}
       if (!c || !m) { erreur('Saisissez votre courriel et votre mot de passe.'); return; }
       document.getElementById('acBtn').disabled = true; erreur('');
       api('connexion', { courriel: c, mdp: m }).then(function () { lancerPortail(); })
-        .catch(function (e) { erreur(e.message); document.getElementById('acBtn').disabled = false; });
+        .catch(function (e) { erreurAvecRemise(e); document.getElementById('acBtn').disabled = false; });
     }
     document.getElementById('acBtn').onclick = envoyer;
     ac.querySelectorAll('input').forEach(function (i) { i.onkeydown = function (e) { if (e.key === 'Enter') envoyer(); }; });
@@ -633,7 +659,7 @@ body.charge-cartes .carte-zone,body.charge-cartes .incrustations{opacity:0}
       if (saisi.length !== 6) { erreur('Six chiffres.'); return; }
       erreur('');
       api(action, Object.assign({ code: saisi }, params || {})).then(apres)
-        .catch(function (e) { if (e.mdp) { ecranConnexion(e.message); return; } erreur(e.message); saisi = ''; points(); });
+        .catch(function (e) { if (e.mdp) { ecranConnexion(e.message); return; } erreurAvecRemise(e); saisi = ''; points(); });
     }
     ac.querySelectorAll('.ac-clavier button').forEach(function (b) {
       b.onclick = function () {
@@ -835,6 +861,7 @@ body.charge-cartes .carte-zone,body.charge-cartes .incrustations{opacity:0}
         document.getElementById('nomClient').textContent = d.client;
         document.title = 'ARGOS · ' + d.client;
         menuCompte();
+        boutonRappel();
         ac.hidden = true;
         if (!portailLance) { portailLance = true; demarrerArgos(); }
       });
