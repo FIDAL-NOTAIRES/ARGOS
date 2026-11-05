@@ -602,7 +602,7 @@ body.charge-cartes .carte-zone,body.charge-cartes .incrustations{opacity:0}
     erreur(e.message);
     if (!e.pause) return;
     var z = ac.querySelector('.ac-erreur'); if (!z) return;
-    var a = document.createElement('a'); a.className = 'ac-btn-remise'; a.href = mailto(e.pause); a.textContent = 'Demander la remise en service';
+    var a = document.createElement('a'); a.className = 'ac-btn-remise'; a.href = mailto(e.pause); a.textContent = 'Demander le rétablissement d’un accès';
     z.appendChild(document.createElement('br')); z.appendChild(a);
   }
   function boutonRappel() {
