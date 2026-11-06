@@ -279,6 +279,8 @@ const actions = {
       contact: u ? await contactAssocie(sql, client) : null,
       appareil: app ? { type: app.type, libelle: app.libelle } : null,
       telephone: estTelephone(req.headers["user-agent"]),
+      // 06/11 : clé des cartes 3D Google pour l'ouverture du portail, remise au seul utilisateur connecté (variable GOOGLE_MAPS_CLE)
+      carte3d: u && process.env.GOOGLE_MAPS_CLE ? process.env.GOOGLE_MAPS_CLE : null,
     };
   },
 
