@@ -882,7 +882,8 @@ body.entree .fiche,body.entree .accueil-tete{animation:entreeCote .7s 1.05s ease
             surface: ref.surface || '', cadastreTexte: ref.cadastre || '', titre: ref.titre || '', acteDate: ref.acte_date || '', notaire: ref.notaire || '', designation: fiche.designation || '', pieces: s.pieces || [], maj_le: s.maj_le,
             planPieceId: s.plan_piece_id || null, organisationVisible: !!s.organisation_visible, entree: ref.entree || '' };
         });
-        document.getElementById('nomClient').textContent = d.client;
+        /* 06/11 : le bandeau porte le nom du client en texte, à côté de FIDAL Notaires (tranché le 04/11) — « Patrimoine foncier d’AFTL » */
+        document.getElementById('nomClient').textContent = 'Patrimoine foncier ' + (/^[aeiouyàâäéèêëîïôöùûüœh]/i.test(String(d.client || '').trim()) ? 'd’' : 'de ') + d.client;
         document.title = 'ARGOS · ' + d.client;
         menuCompte();
         boutonRappel();
