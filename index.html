@@ -339,6 +339,14 @@ body.charge-cartes .carte-zone,body.charge-cartes .incrustations{opacity:0}
 .btn-export svg{width:14px;height:14px}
 .btn-export:focus-visible{outline:2px solid var(--canard);outline-offset:2px}
 @media (prefers-reduced-motion: reduce){#intro{display:none}}
+/* 06/11 : ouverture en 3D (cartes 3D Google) jouée dans la carte centrale, les colonnes du portail restent devant et utilisables */
+#ouv3d{position:absolute;inset:0;z-index:1100;background:var(--nuit);overflow:hidden;transition:opacity 1.2s ease}
+#ouv3d.part{opacity:0;pointer-events:none}
+#ouv3d .ouv3d-carte{position:absolute;inset:0;width:100%;height:100%;display:block}
+#ouv3d .ouv3d-voile{position:absolute;inset:0;z-index:2;background:var(--nuit);transition:opacity .8s ease;pointer-events:none}
+#ouv3d.pret .ouv3d-voile{opacity:0}
+#ouv3d .ouv3d-capte{position:absolute;inset:0;z-index:3;cursor:pointer}
+#ouv3d .passer{z-index:4}
 @media (max-width:1100px){
   body{overflow:auto}
   .corps{display:flex;flex-direction:column;height:auto}
@@ -846,6 +854,7 @@ body.charge-cartes .carte-zone,body.charge-cartes .incrustations{opacity:0}
     carte('<h2>Chargement du portail…</h2><p>Lecture des sites et des pièces.</p>');
     api('etat', null, 'GET').then(function (e) {
       ETAT = e;
+      window.ARGOS_CLE3D = e.carte3d || null;
       if (!e.utilisateur) { ecranConnexion(); return; }
       return api('sites', null, 'GET').then(function (d) {
         var manque = d.sites.filter(function (s) { return !(s.lat && s.lng); });
@@ -2428,6 +2437,111 @@ function annoncer(t) {
   clearTimeout(minuteur); minuteur = setTimeout(function () { m.classList.remove('vu'); }, 3200);
 }
 
+/* ---------- 06/11 : OUVERTURE EN 3D (cartes 3D Google), une seule fois par session ----------
+   Joue dans la carte centrale pendant que l'en-tête et les colonnes du portail s'affichent devant, déjà utilisables :
+   départ à l'échelle régionale au-dessus du siège → vol vers l'immeuble → un tour en vue de drone →
+   remontée verticale, orientée au nord, à la hauteur du zoom de la carte centrale → fondu vers la carte, puis cadrage d'ensemble.
+   Rien n'attend l'animation : sites et pièces sont déjà chargés. « Passer », un clic sur la vue, ou un clic dans les colonnes l'arrêtent.
+   Sans clé, sans site géolocalisé ou en cas d'échec Google : pas d'animation 3D (l'ancienne ouverture sert de repli). */
+var OUV3D = {
+  vol: 10000,          /* durée du vol vers l'immeuble (ms) */
+  tour: 10000,         /* durée du tour en vue de drone (ms) */
+  remontee: 3000,      /* durée de la remontée verticale vers le nord (ms) */
+  depart: 350000,      /* distance de départ : échelle régionale, un peu au-dessus (m) */
+  approche: 420,       /* distance de la caméra pendant le tour (m) */
+  inclinaison: 62,     /* inclinaison pendant le tour (degrés) */
+  zoomFin: 17,         /* zoom de la carte centrale au moment du fondu */
+  champ: 35            /* angle de vue vertical supposé de la caméra Google, pour caler la remontée sur ce zoom (degrés) */
+};
+function cibleOuverture() {
+  var avec = SITES.filter(function (s) { return s.lat && s.lng && !(s.lat === 46.6 && s.lng === 2.4); });
+  var siege = avec.filter(function (s) { return /si[eè]ge/i.test([s.nom, s.nature, s.groupe].join(' ')); })[0];
+  return siege || avec[0] || null;
+}
+function chargerGoogle3d(cle) {
+  if (window.google && google.maps && google.maps.maps3d) return Promise.resolve();
+  return new Promise(function (ok, ko) {
+    window.argosGoogle3d = function () { ok(); };
+    window.gm_authFailure = function () { ko(new Error('clé refusée')); };
+    var sc = document.createElement('script');
+    sc.async = true;
+    sc.src = 'https://maps.googleapis.com/maps/api/js?key=' + encodeURIComponent(cle) + '&v=beta&libraries=maps3d&language=fr&region=FR&callback=argosGoogle3d';
+    sc.onerror = function () { ko(new Error('chargement impossible')); };
+    document.head.appendChild(sc);
+  });
+}
+function ouvertureGoogle() {
+  var cle = window.ARGOS_CLE3D, s = cibleOuverture(), zone = document.getElementById('zoneCarte');
+  if (!cle || !s || !zone || zone.clientWidth < 320 || zone.clientHeight < 240) return false;
+  var couche = document.createElement('div');
+  couche.id = 'ouv3d';
+  couche.innerHTML = '<div class="ouv3d-voile"></div><div class="ouv3d-capte" title="Passer"></div><button type="button" class="passer">Passer</button>';
+  zone.appendChild(couche);
+  var fini = false, parti = false, carte3 = null, minuteurs = [];
+  var centre = { lat: s.lat, lng: s.lng, altitude: 0 };
+  function plus(f, ms) { minuteurs.push(setTimeout(f, ms)); }
+  function arreter() {
+    fini = true;
+    minuteurs.forEach(clearTimeout);
+    try { if (carte3 && carte3.stopCameraAnimation) carte3.stopCameraAnimation(); } catch (e) {}
+    document.removeEventListener('click', clicColonnes, true);
+  }
+  /* fin normale ou « Passer » : la carte centrale est posée sur l'immeuble, la vue 3D s'efface par-dessus, puis cadrage d'ensemble */
+  function finir(vite) {
+    if (fini) return; arreter();
+    if (courant === null) carte.setView([s.lat, s.lng], OUV3D.zoomFin, { animate: false });
+    couche.classList.add('part');
+    setTimeout(function () { couche.remove(); if (courant === null) cadrerEnsemble(true); }, vite ? 600 : 1300);
+  }
+  /* échec (clé refusée, Google injoignable) : on retire la couche sans rien toucher */
+  function abandonner() {
+    if (fini) return; arreter();
+    couche.classList.add('part');
+    setTimeout(function () { couche.remove(); }, 600);
+  }
+  /* un clic dans les colonnes (liste, fiche, en-tête) arrête aussitôt l'animation, sans recadrer : le client garde la main */
+  function clicColonnes(e) {
+    if (fini || couche.contains(e.target)) return;
+    if (e.target.closest('.liste, .fiche, .tete, .incrustations')) { arreter(); couche.classList.add('part'); setTimeout(function () { couche.remove(); }, 600); }
+  }
+  document.addEventListener('click', clicColonnes, true);
+  couche.querySelector('.passer').addEventListener('click', function () { finir(true); });
+  couche.querySelector('.ouv3d-capte').addEventListener('click', function () { finir(true); });
+  /* distance de caméra qui montre, en vue verticale, la même étendue que la carte centrale au zoom de fin */
+  function porteeFin() {
+    var mpp = 156543.03392 * Math.cos(s.lat * Math.PI / 180) / Math.pow(2, OUV3D.zoomFin);
+    return (zone.clientHeight * mpp / 2) / Math.tan(OUV3D.champ / 2 * Math.PI / 180);
+  }
+  function voler() {
+    carte3.flyCameraTo({ endCamera: { center: centre, range: OUV3D.approche, tilt: OUV3D.inclinaison, heading: 0 }, durationMillis: OUV3D.vol });
+    plus(tourner, OUV3D.vol + 150);
+  }
+  function tourner() {
+    carte3.flyCameraAround({ camera: { center: centre, range: OUV3D.approche, tilt: OUV3D.inclinaison, heading: 0 }, durationMillis: OUV3D.tour, rounds: 1, repeatCount: 1 });
+    plus(remonter, OUV3D.tour + 150);
+  }
+  function remonter() {
+    carte3.flyCameraTo({ endCamera: { center: centre, range: porteeFin(), tilt: 0, heading: 0 }, durationMillis: OUV3D.remontee });
+    plus(function () { finir(false); }, OUV3D.remontee + 250);
+  }
+  function partir() {
+    if (parti || fini) return; parti = true;
+    couche.classList.add('pret');
+    voler();
+  }
+  plus(function () { if (!parti) abandonner(); }, 9000); /* Google trop lent à répondre : on renonce */
+  chargerGoogle3d(cle).then(function () {
+    if (fini) return;
+    carte3 = new google.maps.maps3d.Map3DElement({ center: centre, range: OUV3D.depart, tilt: 0, heading: 0, mode: 'SATELLITE', defaultUIHidden: true });
+    carte3.classList.add('ouv3d-carte');
+    couche.insertBefore(carte3, couche.firstChild);
+    /* la vue de départ s'affiche complète avant le vol (3 s au plus) */
+    carte3.addEventListener('gmp-steadychange', function (ev) { if (ev.isSteady) partir(); });
+    plus(partir, 3000);
+  }).catch(abandonner);
+  return true;
+}
+
 /* ---------- Ouverture : descente de drone sur la vue aérienne, parcelles allumées, puis le nom (une fois par session) ---------- */
 (function () {
   var intro = document.getElementById('intro');
@@ -2435,6 +2549,8 @@ function annoncer(t) {
   try { dejaVue = sessionStorage.getItem('argos-intro') === '1'; sessionStorage.setItem('argos-intro', '1'); } catch (e) {}
   var calme = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   if (dejaVue || calme) { intro.remove(); return; }
+  /* 06/11 : avec une clé Google, l'ouverture se joue en 3D dans la carte centrale ; l'ancienne ouverture plein écran reste le repli */
+  if (ouvertureGoogle()) { intro.remove(); return; }
   var fini = false, minuteurs = [];
   function plus(f, ms) { minuteurs.push(setTimeout(f, ms)); }
   function finir() {
